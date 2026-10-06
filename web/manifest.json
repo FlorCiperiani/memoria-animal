@@ -1,0 +1,35 @@
+{
+    "name": "Memoria Animal",
+    "short_name": "Memoria Animal",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#FFF4C2",
+    "theme_color": "#E6534E",
+    "description": "Memoria Animal, un juego de memoria para encontrar parejas de animales.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
