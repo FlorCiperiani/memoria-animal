@@ -87,6 +87,7 @@ class _MemoryGameAppState extends State<MemoryGameApp>
       home: HomePage(
         onThemeModeChanged: _setDarkMode,
         onStartAmbient: _startThemeAmbient,
+        profileRepository: _profileRepository,
       ),
     );
   }

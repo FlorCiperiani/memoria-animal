@@ -15,4 +15,7 @@ abstract interface class GameProfileRepository {
 
   Future<void> saveEffectsEnabled(bool enabled);
 
+  Future<bool> loadTutorialSeen();
+
+  Future<void> saveTutorialSeen(bool seen);
 }

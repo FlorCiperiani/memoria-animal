@@ -10,6 +10,7 @@ class GameProfileRepositoryImpl implements GameProfileRepository {
   static const _isProKey = 'game.profile.isPro';
   static const _ambientEnabledKey = 'game.settings.ambientEnabled';
   static const _effectsEnabledKey = 'game.settings.effectsEnabled';
+  static const _tutorialSeenKey = 'game.settings.tutorialSeen';
 
   final SharedPreferencesAsync _preferences;
 
@@ -44,4 +45,11 @@ class GameProfileRepositoryImpl implements GameProfileRepository {
   Future<void> saveEffectsEnabled(bool enabled) =>
       _preferences.setBool(_effectsEnabledKey, enabled);
 
+  @override
+  Future<bool> loadTutorialSeen() async =>
+      await _preferences.getBool(_tutorialSeenKey) ?? false;
+
+  @override
+  Future<void> saveTutorialSeen(bool seen) =>
+      _preferences.setBool(_tutorialSeenKey, seen);
 }
