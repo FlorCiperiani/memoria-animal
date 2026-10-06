@@ -62,7 +62,7 @@ class _MemoryGameAppState extends State<MemoryGameApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_audioRepository.resumeThemeAmbient());
-    } else if (state == AppLifecycleState.inactive ||
+    } else if (state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(_audioRepository.pauseThemeAmbient());

@@ -5,7 +5,7 @@ enum GameDifficulty { easy, medium, hard }
 enum GameLevel { one, two, three }
 
 extension GameLevelDetails on GameLevel {
-  int get pairsCount => 6 + (index * 2);
+  int get pairsCount => 4 + index;
 
   String get label => switch (this) {
     GameLevel.one => 'Nivel 1',
@@ -37,7 +37,7 @@ extension GameDifficultyLabel on GameDifficulty {
 /// Reglas configurables del juego.
 class GameConfig extends Equatable {
   const GameConfig({
-    this.pairsCount = 6,
+    this.pairsCount = 4,
     this.previewDuration = const Duration(seconds: 3),
     this.mismatchDuration = const Duration(milliseconds: 1200),
     this.matchDelay = const Duration(milliseconds: 600),
@@ -47,10 +47,10 @@ class GameConfig extends Equatable {
     this.pointsPerMatch = 10,
   });
 
-  /// Cantidad de pares en el tablero (6 pares = 12 fichas).
+  /// Cantidad de pares del primer nivel (4 pares = 8 fichas).
   final int pairsCount;
 
-  int pairsCountFor(GameLevel level) => pairsCount + (level.index * 2);
+  int pairsCountFor(GameLevel level) => pairsCount + level.index;
 
   /// Tiempo que se muestran todas las fichas al comenzar.
   final Duration previewDuration;

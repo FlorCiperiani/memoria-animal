@@ -130,8 +130,6 @@ class _GameView extends StatelessWidget {
         body: Stack(
           children: [
             BlocBuilder<GameCubit, GameState>(
-              buildWhen: (previous, current) =>
-                  previous.gameStyle != current.gameStyle,
               builder: (context, state) => AppBackdrop(
                 gameStyle: state.gameStyle,
                 child: SafeArea(
@@ -141,22 +139,15 @@ class _GameView extends StatelessWidget {
                       children: [
                         BlocBuilder<GameCubit, GameState>(
                           buildWhen: (previous, current) =>
-                              previous.phase != current.phase,
-                          builder: (context, state) => _Header(
-                            onThemeModeChanged: onThemeModeChanged,
-                            canChangeTheme: state.phase == GamePhase.initial,
-                            onOpenSettings: () => _openSettings(context),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        BlocBuilder<GameCubit, GameState>(
-                          buildWhen: (previous, current) =>
+                              previous.phase != current.phase ||
                               previous.username != current.username ||
                               previous.accountType != current.accountType ||
                               previous.score != current.score ||
                               previous.diamonds != current.diamonds,
-                          builder: (context, state) => _PlayerHeader(
+                          builder: (context, state) => _GameHeader(
                             state: state,
+                            onThemeModeChanged: onThemeModeChanged,
+                            onOpenSettings: () => _openSettings(context),
                             onOpenShop: () => _openDiamondShop(context),
                             onUpgradeAccount: () => _openProUpgrade(context),
                             onDowngradeAccount: () =>
@@ -269,6 +260,9 @@ class _GameView extends StatelessWidget {
                                     state: state,
                                     onPause: () =>
                                         context.read<GameCubit>().pauseGame(),
+                                    onReturnToThemes: () => context
+                                        .read<GameCubit>()
+                                        .returnToThemes(),
                                     onRestart: () =>
                                         context.read<GameCubit>().restartGame(
                                           Theme.of(context).brightness ==
@@ -285,6 +279,7 @@ class _GameView extends StatelessWidget {
                                         ),
                                         child: GameBoard(
                                           cards: state.cards,
+                                          gameStyle: state.gameStyle,
                                           starCardId: state.starCardId,
                                           onCardTap: context
                                               .read<GameCubit>()
@@ -788,11 +783,8 @@ class _GameView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: () => _completeProUpgrade(
-                context,
-                sheetContext,
-                cubit,
-              ),
+              onPressed: () =>
+                  _completeProUpgrade(context, sheetContext, cubit),
               icon: const Icon(Icons.star_rounded),
               label: const Text('Activar PRO (demo, sin cobro)'),
               style: FilledButton.styleFrom(
@@ -869,60 +861,149 @@ class _GameView extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
+class _GameHeader extends StatelessWidget {
+  const _GameHeader({
+    required this.state,
     required this.onThemeModeChanged,
-    required this.canChangeTheme,
     required this.onOpenSettings,
+    required this.onOpenShop,
+    required this.onUpgradeAccount,
+    required this.onDowngradeAccount,
   });
 
+  final GameState state;
   final ValueChanged<bool> onThemeModeChanged;
-  final bool canChangeTheme;
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenShop;
+  final VoidCallback onUpgradeAccount;
+  final VoidCallback onDowngradeAccount;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Stack(
-        alignment: Alignment.center,
+    final colors = AppColors.paletteFor(
+      state.gameStyle,
+      Theme.of(context).brightness == Brightness.dark,
+    );
+    final isBasic = state.accountType != 'PRO';
+    final onProfileTap = isBasic ? onUpgradeAccount : onDowngradeAccount;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.panel,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.panelBorder, width: 1.5),
+      ),
+      child: Row(
         children: [
-          const Text(
-            'Memoria Animal',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                tooltip: 'Volver',
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () {
-                  final cubit = context.read<GameCubit>();
-                  if (cubit.state.phase == GamePhase.initial) {
-                    Navigator.of(context).pop();
-                  } else {
-                    cubit.returnToSetup();
-                  }
-                },
+          Expanded(
+            child: InkWell(
+              onTap: onProfileTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_rounded, size: 20),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        state.username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: colors.textDark,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.secondary.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        state.accountType == 'PRO' ? 'PRO' : 'BASIC',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: colors.secondaryDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              Row(
+            ),
+          ),
+          InkWell(
+            onTap: onOpenShop,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    tooltip: 'Configuración',
-                    icon: const Icon(Icons.settings_rounded),
-                    onPressed: onOpenSettings,
-                  ),
-                  if (canChangeTheme)
-                    _ThemeModeSwitch(
-                      isDarkMode:
-                          Theme.of(context).brightness == Brightness.dark,
-                      onChanged: onThemeModeChanged,
+                  const Text('💎', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${state.diamonds}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: colors.textDark,
                     ),
+                  ),
+                  const SizedBox(width: 3),
+                  Icon(
+                    Icons.add_circle_rounded,
+                    size: 17,
+                    color: colors.primaryDark,
+                  ),
                 ],
               ),
-            ],
+            ),
+          ),
+          if (state.phase == GamePhase.initial)
+            _CompactThemeModeButton(
+              isDarkMode: Theme.of(context).brightness == Brightness.dark,
+              onChanged: onThemeModeChanged,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.stars_rounded,
+                    color: Colors.amber,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${state.score}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: colors.textDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          IconButton(
+            tooltip: 'Configuración',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+            onPressed: onOpenSettings,
+            icon: const Icon(Icons.settings_rounded),
           ),
         ],
       ),
@@ -930,8 +1011,11 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _ThemeModeSwitch extends StatelessWidget {
-  const _ThemeModeSwitch({required this.isDarkMode, required this.onChanged});
+class _CompactThemeModeButton extends StatelessWidget {
+  const _CompactThemeModeButton({
+    required this.isDarkMode,
+    required this.onChanged,
+  });
 
   final bool isDarkMode;
   final ValueChanged<bool> onChanged;
@@ -942,72 +1026,171 @@ class _ThemeModeSwitch extends StatelessWidget {
       context.read<GameCubit>().state.gameStyle,
       isDarkMode,
     );
-
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: colors.panel,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: colors.panelBorder, width: 1.5),
+    return IconButton(
+      tooltip: isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      onPressed: () => onChanged(!isDarkMode),
+      icon: Icon(
+        isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+        size: 21,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ThemeModeButton(
-            icon: Icons.light_mode_rounded,
-            tooltip: 'Modo claro',
-            selected: !isDarkMode,
-            selectedColor: colors.secondary,
-            onPressed: () => onChanged(false),
-          ),
-          _ThemeModeButton(
-            icon: Icons.dark_mode_rounded,
-            tooltip: 'Modo oscuro',
-            selected: isDarkMode,
-            selectedColor: colors.primaryDark,
-            onPressed: () => onChanged(true),
-          ),
-        ],
+      style: IconButton.styleFrom(
+        foregroundColor: colors.textDark,
+        padding: EdgeInsets.zero,
       ),
     );
   }
 }
 
-class _ThemeModeButton extends StatelessWidget {
-  const _ThemeModeButton({
-    required this.icon,
-    required this.tooltip,
-    required this.selected,
+class _GameStylePicker extends StatefulWidget {
+  const _GameStylePicker({
+    required this.selectedStyle,
+    required this.accountType,
     required this.selectedColor,
-    required this.onPressed,
+    required this.panelColor,
+    required this.borderColor,
+    required this.textColor,
+    required this.onSelectStyle,
   });
 
-  final IconData icon;
-  final String tooltip;
-  final bool selected;
+  final GameStyle selectedStyle;
+  final String accountType;
   final Color selectedColor;
-  final VoidCallback onPressed;
+  final Color panelColor;
+  final Color borderColor;
+  final Color textColor;
+  final ValueChanged<GameStyle> onSelectStyle;
+
+  @override
+  State<_GameStylePicker> createState() => _GameStylePickerState();
+}
+
+class _GameStylePickerState extends State<_GameStylePicker> {
+  late int _visibleStyleIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _visibleStyleIndex = widget.selectedStyle.index;
+  }
+
+  @override
+  void didUpdateWidget(covariant _GameStylePicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedStyle != widget.selectedStyle) {
+      _visibleStyleIndex = widget.selectedStyle.index;
+    }
+  }
+
+  void _showStyle(int offset) {
+    final nextIndex =
+        (_visibleStyleIndex + offset + GameStyle.values.length) %
+        GameStyle.values.length;
+    setState(() => _visibleStyleIndex = nextIndex);
+    widget.onSelectStyle(GameStyle.values[nextIndex]);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.paletteFor(
-      context.read<GameCubit>().state.gameStyle,
-      Theme.of(context).brightness == Brightness.dark,
-    );
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: tooltip,
-        icon: Icon(icon, size: 18),
-        style: IconButton.styleFrom(
-          foregroundColor: colors.textDark,
-          backgroundColor: selected ? selectedColor : Colors.transparent,
-          fixedSize: const Size(34, 32),
-          padding: EdgeInsets.zero,
-          shape: const StadiumBorder(),
+    final style = GameStyle.values[_visibleStyleIndex];
+    final isLocked = _requiresPro(style) && widget.accountType != 'PRO';
+    final isSelected = style == widget.selectedStyle;
+
+    return Row(
+      children: [
+        IconButton.filledTonal(
+          tooltip: 'Temática anterior',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _showStyle(-1),
+          icon: const Icon(Icons.chevron_left_rounded),
         ),
-      ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: Container(
+              key: ValueKey(style),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: widget.panelColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isSelected ? widget.selectedColor : widget.borderColor,
+                  width: isSelected ? 2 : 1.5,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(style.emoji, style: const TextStyle(fontSize: 25)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          style.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: widget.textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (isLocked) ...[
+                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.lock_rounded,
+                          size: 16,
+                          color: widget.textColor,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    style.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: widget.textColor, fontSize: 11),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: isSelected
+                        ? null
+                        : () => widget.onSelectStyle(style),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      minimumSize: const Size(0, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      isSelected
+                          ? 'Temática seleccionada'
+                          : isLocked
+                          ? 'Desbloquear PRO'
+                          : 'Elegir temática',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        IconButton.filledTonal(
+          tooltip: 'Temática siguiente',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _showStyle(1),
+          icon: const Icon(Icons.chevron_right_rounded),
+        ),
+      ],
     );
   }
 }
@@ -1069,115 +1252,14 @@ class _GameSetup extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final chipWidth = (constraints.maxWidth - 24) / 4;
-                      final styles = GameStyle.values;
-
-                      Widget buildStyleChip(GameStyle style) {
-                        final isLocked =
-                            _requiresPro(style) && state.accountType != 'PRO';
-                        return SizedBox(
-                          width: chipWidth,
-                          height: 44,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox.expand(
-                                child: ChoiceChip(
-                                  showCheckmark: false,
-                                  label: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        style.emoji,
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          style.label,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  selected: state.gameStyle == style,
-                                  onSelected: (_) => onSelectStyle(style),
-                                  selectedColor: style == GameStyle.tundra
-                                      ? tundraButtonColor
-                                      : selectedButtonColor,
-                                  backgroundColor: colors.panel,
-                                  labelStyle: TextStyle(
-                                    color: state.gameStyle == style
-                                        ? Colors.white
-                                        : colors.textDark,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                              ),
-                              if (isLocked)
-                                Positioned(
-                                  top: -3,
-                                  right: 8,
-                                  child: IgnorePointer(
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: BoxDecoration(
-                                        color: colors.panel,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: colors.panelBorder,
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        Icons.lock_rounded,
-                                        size: 10,
-                                        color: colors.textMedium,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              for (final style in styles.take(4))
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 3,
-                                  ),
-                                  child: buildStyleChip(style),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              for (final style in styles.skip(4))
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 3,
-                                  ),
-                                  child: buildStyleChip(style),
-                                ),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
+                  _GameStylePicker(
+                    selectedStyle: state.gameStyle,
+                    accountType: state.accountType,
+                    selectedColor: selectedButtonColor,
+                    panelColor: colors.panel,
+                    borderColor: colors.panelBorder,
+                    textColor: colors.textDark,
+                    onSelectStyle: onSelectStyle,
                   ),
                   const SizedBox(height: 20),
                   AnimatedSwitcher(
@@ -1941,6 +2023,7 @@ class _GameControlBar extends StatelessWidget {
   const _GameControlBar({
     required this.state,
     required this.onPause,
+    required this.onReturnToThemes,
     required this.onRestart,
     required this.onNewGame,
   });
@@ -1948,6 +2031,7 @@ class _GameControlBar extends StatelessWidget {
   final GameState state;
 
   final VoidCallback onPause;
+  final VoidCallback onReturnToThemes;
   final VoidCallback onRestart;
   final VoidCallback onNewGame;
 
@@ -1965,6 +2049,12 @@ class _GameControlBar extends StatelessWidget {
       alignment: WrapAlignment.center,
       spacing: 12,
       children: [
+        _GameControlButton(
+          icon: Icons.palette_rounded,
+          tooltip: 'Volver a las temáticas',
+          color: colors.secondaryDark,
+          onPressed: onReturnToThemes,
+        ),
         if (canPause)
           _GameControlButton(
             icon: Icons.pause_rounded,
@@ -2021,146 +2111,6 @@ class _GameControlButton extends StatelessWidget {
           child: Icon(icon, color: color, size: 24),
         ),
       ),
-    );
-  }
-}
-
-class _PlayerHeader extends StatelessWidget {
-  const _PlayerHeader({
-    required this.state,
-    required this.onOpenShop,
-    required this.onUpgradeAccount,
-    required this.onDowngradeAccount,
-  });
-
-  final GameState state;
-  final VoidCallback onOpenShop;
-  final VoidCallback onUpgradeAccount;
-  final VoidCallback onDowngradeAccount;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.paletteFor(
-      state.gameStyle,
-      Theme.of(context).brightness == Brightness.dark,
-    );
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.panel,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.panelBorder, width: 1.5),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('👤', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Text(
-                state.username,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: colors.textDark,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.secondary.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  state.accountType,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: colors.secondaryDark,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.panel,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.panelBorder, width: 1.5),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.stars_rounded, size: 16, color: Colors.amber),
-              const SizedBox(width: 6),
-              Text(
-                'Puntaje ${state.score}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: colors.textDark,
-                ),
-              ),
-            ],
-          ),
-        ),
-        InkWell(
-          onTap: onOpenShop,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: colors.panel,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: colors.panelBorder, width: 1.5),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('💎', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 6),
-                Text(
-                  '${state.diamonds}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: colors.textDark,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.add_circle_rounded,
-                  size: 18,
-                  color: colors.primaryDark,
-                ),
-              ],
-            ),
-          ),
-        ),
-        IconButton(
-          onPressed: state.accountType == 'PRO'
-              ? onDowngradeAccount
-              : onUpgradeAccount,
-          tooltip: state.accountType == 'PRO'
-              ? 'Volver a BÁSICA'
-              : 'Pasar a PRO',
-          icon: Icon(
-            state.accountType == 'PRO'
-                ? Icons.undo_rounded
-                : Icons.star_rounded,
-            color: state.accountType == 'PRO'
-                ? colors.secondaryDark
-                : Colors.amber,
-          ),
-          style: IconButton.styleFrom(backgroundColor: colors.panel),
-        ),
-      ],
     );
   }
 }

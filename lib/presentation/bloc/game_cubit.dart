@@ -161,6 +161,8 @@ class GameCubit extends Cubit<GameState> {
     isDark,
   );
 
+  void returnToThemes() => returnToSetup();
+
   /// Reinicia la partida manteniendo el orden actual de las cartas o generando nuevas si está vacío.
   Future<void> restartGame(bool isDark) {
     final cards = state.cards.isEmpty
@@ -178,6 +180,7 @@ class GameCubit extends Cubit<GameState> {
 
   Future<void> _beginGame(List<MemoryCard> cards, bool isDark) async {
     if (_startingGame) return;
+    await _audioRepository.resumeThemeAmbient();
     await _audioRepository.stopVictory();
     _startingGame = true;
     try {
@@ -260,6 +263,7 @@ class GameCubit extends Cubit<GameState> {
 
   void resumeGame() {
     if (state.phase != GamePhase.paused) return;
+    unawaited(_audioRepository.resumeThemeAmbient());
     emit(state.copyWith(phase: GamePhase.playing));
     _startTimer(_session);
   }
@@ -293,8 +297,9 @@ class GameCubit extends Cubit<GameState> {
     if (isClosed) return;
 
     final style = switch (state.gameStyle) {
-      GameStyle.prairie || GameStyle.mountains || GameStyle.tundra =>
-        GameStyle.classic,
+      GameStyle.prairie ||
+      GameStyle.mountains ||
+      GameStyle.tundra => GameStyle.classic,
       _ => state.gameStyle,
     };
     final scores = style == state.gameStyle

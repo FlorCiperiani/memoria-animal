@@ -22,6 +22,20 @@ class AudioRepositoryImpl implements AudioRepository {
   static const _victoryEffect = 'audio/sonido_ganador.mp3';
   static const _ambientVolume = 0.12;
   static const _effectVolume = 0.55;
+  static final _ambientAudioContext = AudioContext(
+    android: const AudioContextAndroid(
+      usageType: AndroidUsageType.game,
+      contentType: AndroidContentType.music,
+      audioFocus: AndroidAudioFocus.none,
+    ),
+  );
+  static final _effectAudioContext = AudioContext(
+    android: const AudioContextAndroid(
+      usageType: AndroidUsageType.game,
+      contentType: AndroidContentType.sonification,
+      audioFocus: AndroidAudioFocus.none,
+    ),
+  );
 
   final AudioPlayer _ambientPlayer;
   final AudioPlayer _effectPlayer;
@@ -49,6 +63,7 @@ class AudioRepositoryImpl implements AudioRepository {
       _isDark = isDark;
       _isPaused = false;
       _ambientStarted = true;
+      await _ambientPlayer.setAudioContext(_ambientAudioContext);
       await _ambientPlayer.stop();
       await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
       await _ambientPlayer.setVolume(_ambientVolume);
@@ -108,6 +123,7 @@ class AudioRepositoryImpl implements AudioRepository {
     if (_isDisposed || !_ambientEnabled) return;
     await _enqueueVictory(() async {
       if (_isDisposed || !_ambientEnabled) return;
+      await _victoryPlayer.setAudioContext(_effectAudioContext);
       await _victoryPlayer.setVolume(_effectVolume);
       await _victoryPlayer.play(AssetSource(_victoryEffect));
     });
@@ -122,6 +138,7 @@ class AudioRepositoryImpl implements AudioRepository {
   Future<void> _playEffect(String asset) async {
     if (_isDisposed || !_effectsEnabled) return;
     await _runAudioOperation(() async {
+      await _effectPlayer.setAudioContext(_effectAudioContext);
       await _effectPlayer.setVolume(_effectVolume);
       await _effectPlayer.play(AssetSource(asset));
     });

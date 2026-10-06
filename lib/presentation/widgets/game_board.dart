@@ -3,18 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../domain/entities/game_style.dart';
 import '../../domain/entities/memory_card.dart';
 import '../games/animal_memory_game.dart';
 
 class GameBoard extends StatefulWidget {
   const GameBoard({
     required this.cards,
+    required this.gameStyle,
     required this.onCardTap,
     this.starCardId,
     super.key,
   });
 
   final List<MemoryCard> cards;
+  final GameStyle gameStyle;
   final ValueChanged<int> onCardTap;
   final int? starCardId;
 
@@ -31,7 +34,7 @@ class _GameBoardState extends State<GameBoard> {
     _game = AnimalMemoryGame(
       cards: widget.cards,
       starCardId: widget.starCardId,
-      colors: _colors,
+      colors: AppColors.paletteFor(widget.gameStyle, false),
       isDark: false,
       onCardTap: widget.onCardTap,
     );
@@ -49,8 +52,8 @@ class _GameBoardState extends State<GameBoard> {
     _updateGame();
   }
 
-  AppPalette get _colors => AppColors.light;
   bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  AppPalette get _colors => AppColors.paletteFor(widget.gameStyle, _isDark);
 
   void _updateGame() {
     if (!mounted) return;
@@ -79,9 +82,7 @@ class _GameBoardState extends State<GameBoard> {
           child: _SemanticsOnly(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth > constraints.maxHeight
-                    ? 4
-                    : 3;
+                const columns = 4;
                 final rows = (widget.cards.length / columns).ceil();
                 final cellWidth =
                     (constraints.maxWidth - 6 * (columns - 1)) / columns;
