@@ -2,9 +2,11 @@ import 'package:get_it/get_it.dart';
 
 import '../data/datasources/card_local_datasource.dart';
 import '../data/datasources/game_score_local_datasource.dart';
+import '../data/repositories/audio_repository_impl.dart';
 import '../data/repositories/card_repository_impl.dart';
 import '../data/repositories/game_profile_repository_impl.dart';
 import '../data/repositories/game_score_repository_impl.dart';
+import '../domain/repositories/audio_repository.dart';
 import '../domain/repositories/game_profile_repository.dart';
 import '../domain/repositories/game_score_repository.dart';
 import '../domain/usecases/check_match.dart';
@@ -18,6 +20,7 @@ void configureDependencies() {
 
   sl
     ..registerLazySingleton<CardLocalDataSource>(CardLocalDataSource.new)
+    ..registerLazySingleton<AudioRepository>(AudioRepositoryImpl.new)
     ..registerLazySingleton<GameScoreLocalDataSource>(
       GameScoreLocalDataSource.new,
     )
@@ -38,6 +41,7 @@ void configureDependencies() {
       () => GameCubit(
         generateBoard: sl<GenerateBoard>(),
         checkMatch: sl<CheckMatch>(),
+        audioRepository: sl<AudioRepository>(),
         scoreRepository: sl<GameScoreRepository>(),
         profileRepository: sl<GameProfileRepository>(),
       ),

@@ -46,6 +46,9 @@ class GameState extends Equatable {
     this.diamonds = 100,
     this.username = 'Luna',
     this.accountType = 'BÁSICA',
+    this.ambientEnabled = true,
+    this.effectsEnabled = true,
+    this.profileLoaded = false,
     this.animalFact,
     this.statistics = GameStatistics.empty,
     this.statisticsLoaded = false,
@@ -75,6 +78,9 @@ class GameState extends Equatable {
   final int diamonds;
   final String username;
   final String accountType;
+  final bool ambientEnabled;
+  final bool effectsEnabled;
+  final bool profileLoaded;
   final String? animalFact;
   final GameStatistics statistics;
   final bool statisticsLoaded;
@@ -105,6 +111,9 @@ class GameState extends Equatable {
     int? diamonds,
     String? username,
     String? accountType,
+    bool? ambientEnabled,
+    bool? effectsEnabled,
+    bool? profileLoaded,
     String? animalFact,
     bool clearAnimalFact = false,
     GameStatistics? statistics,
@@ -132,6 +141,9 @@ class GameState extends Equatable {
       diamonds: diamonds ?? this.diamonds,
       username: username ?? this.username,
       accountType: accountType ?? this.accountType,
+      ambientEnabled: ambientEnabled ?? this.ambientEnabled,
+      effectsEnabled: effectsEnabled ?? this.effectsEnabled,
+      profileLoaded: profileLoaded ?? this.profileLoaded,
       animalFact: clearAnimalFact ? null : animalFact ?? this.animalFact,
       statistics: statistics ?? this.statistics,
       statisticsLoaded: statisticsLoaded ?? this.statisticsLoaded,
@@ -159,6 +171,9 @@ class GameState extends Equatable {
     diamonds,
     username,
     accountType,
+    ambientEnabled,
+    effectsEnabled,
+    profileLoaded,
     animalFact,
     statistics,
     statisticsLoaded,

@@ -7,6 +7,7 @@ import '../../domain/entities/game_config.dart';
 import '../../domain/entities/game_style.dart';
 import '../../domain/entities/game_statistics.dart';
 import '../../domain/entities/memory_card.dart';
+import '../../domain/repositories/audio_repository.dart';
 import '../../domain/repositories/game_profile_repository.dart';
 import '../../domain/repositories/game_score_repository.dart';
 import '../../domain/usecases/check_match.dart';
@@ -17,6 +18,7 @@ class GameCubit extends Cubit<GameState> {
   GameCubit({
     required this._generateBoard,
     required this._checkMatch,
+    required this._audioRepository,
     required this._scoreRepository,
     required this._profileRepository,
     this._config = const GameConfig(),
@@ -26,6 +28,7 @@ class GameCubit extends Cubit<GameState> {
 
   final GenerateBoard _generateBoard;
   final CheckMatch _checkMatch;
+  final AudioRepository _audioRepository;
   final GameScoreRepository _scoreRepository;
   final GameProfileRepository _profileRepository;
   final GameConfig _config;
@@ -62,11 +65,23 @@ class GameCubit extends Cubit<GameState> {
   Future<void> _loadProfile() async {
     final diamonds = await _profileRepository.loadDiamonds();
     final isPro = await _profileRepository.loadIsPro();
+    final ambientEnabled = await _profileRepository.loadAmbientEnabled();
+    final effectsEnabled = await _profileRepository.loadEffectsEnabled();
+    await _audioRepository.setAmbientEnabled(ambientEnabled);
+    await _audioRepository.setEffectsEnabled(effectsEnabled);
     if (isClosed) return;
     emit(
-      state.copyWith(diamonds: diamonds, accountType: isPro ? 'PRO' : 'BÁSICA'),
+      state.copyWith(
+        diamonds: diamonds,
+        accountType: isPro ? 'PRO' : 'BÁSICA',
+        ambientEnabled: ambientEnabled,
+        effectsEnabled: effectsEnabled,
+        profileLoaded: true,
+      ),
     );
   }
+
+  Future<void> ensureProfileLoaded() => _profileReady;
 
   Future<void> selectStyle(GameStyle style, bool isDark) async {
     if (state.phase != GamePhase.initial || _startingGame) return;
@@ -102,6 +117,7 @@ class GameCubit extends Cubit<GameState> {
   }
 
   void returnToSetup() {
+    unawaited(_audioRepository.stopVictory());
     _timer?.cancel();
     _timer = null;
     _session++;
@@ -113,6 +129,9 @@ class GameCubit extends Cubit<GameState> {
         diamonds: state.diamonds,
         username: state.username,
         accountType: state.accountType,
+        ambientEnabled: state.ambientEnabled,
+        effectsEnabled: state.effectsEnabled,
+        profileLoaded: state.profileLoaded,
         gameStyle: state.gameStyle,
         statistics: state.statistics,
         statisticsLoaded: state.statisticsLoaded,
@@ -159,6 +178,7 @@ class GameCubit extends Cubit<GameState> {
 
   Future<void> _beginGame(List<MemoryCard> cards, bool isDark) async {
     if (_startingGame) return;
+    await _audioRepository.stopVictory();
     _startingGame = true;
     try {
       await _runGame(cards, isDark);
@@ -209,6 +229,9 @@ class GameCubit extends Cubit<GameState> {
         diamonds: state.diamonds,
         username: state.username,
         accountType: state.accountType,
+        ambientEnabled: state.ambientEnabled,
+        effectsEnabled: state.effectsEnabled,
+        profileLoaded: state.profileLoaded,
         animalFact: animalFact,
         statistics: state.statistics,
         statisticsLoaded: state.statisticsLoaded,
@@ -256,13 +279,61 @@ class GameCubit extends Cubit<GameState> {
 
   /// Activa la cuenta PRO como una compra de demostración.
   Future<void> upgradeToPro() async {
-    if (state.accountType == 'PRO') return;
     await _profileReady;
     if (isClosed || state.accountType == 'PRO') return;
     await _profileRepository.saveIsPro(true);
     if (isClosed) return;
     emit(state.copyWith(accountType: 'PRO'));
   }
+
+  Future<void> downgradeToBasic() async {
+    await _profileReady;
+    if (isClosed || state.accountType != 'PRO') return;
+    await _profileRepository.saveIsPro(false);
+    if (isClosed) return;
+
+    final style = switch (state.gameStyle) {
+      GameStyle.prairie || GameStyle.mountains || GameStyle.tundra =>
+        GameStyle.classic,
+      _ => state.gameStyle,
+    };
+    final scores = style == state.gameStyle
+        ? state.scores
+        : await _scoreRepository.loadScores(style);
+    if (isClosed) return;
+
+    emit(
+      state.copyWith(
+        accountType: 'BÁSICA',
+        gameStyle: style,
+        scores: scores,
+        scoresLoaded: true,
+        score: 0,
+        clearDifficulty: true,
+        selectionRequired: false,
+      ),
+    );
+  }
+
+  Future<void> setAmbientEnabled(bool enabled) async {
+    await _profileReady;
+    if (isClosed || state.ambientEnabled == enabled) return;
+    await _profileRepository.saveAmbientEnabled(enabled);
+    await _audioRepository.setAmbientEnabled(enabled);
+    if (isClosed) return;
+    emit(state.copyWith(ambientEnabled: enabled));
+  }
+
+  Future<void> setEffectsEnabled(bool enabled) async {
+    await _profileReady;
+    if (isClosed || state.effectsEnabled == enabled) return;
+    await _profileRepository.saveEffectsEnabled(enabled);
+    await _audioRepository.setEffectsEnabled(enabled);
+    if (isClosed) return;
+    emit(state.copyWith(effectsEnabled: enabled));
+  }
+
+  Future<void> stopVictorySound() => _audioRepository.stopVictory();
 
   /// Revela una ficha brevemente.
   Future<bool> revealCardHint() async {
@@ -336,6 +407,7 @@ class GameCubit extends Cubit<GameState> {
           isResolving: true,
         ),
       );
+      unawaited(_audioRepository.playCorrectPair());
       unawaited(
         _completeFoundPair(
           session,
@@ -402,8 +474,10 @@ class GameCubit extends Cubit<GameState> {
     _selectedStarCardId = null;
 
     if (_checkMatch(first, tapped)) {
+      unawaited(_audioRepository.playCorrectPair());
       await _resolveMatch(session, firstId, cardId, hasStarBonus: hasStarBonus);
     } else {
+      unawaited(_audioRepository.playIncorrectPair());
       await _resolveMismatch(session, firstId, cardId);
     }
   }
@@ -465,7 +539,10 @@ class GameCubit extends Cubit<GameState> {
         starSecondsRemaining: hasStarBonus ? 0 : null,
       ),
     );
-    if (isFinished) _timer?.cancel();
+    if (isFinished) {
+      _timer?.cancel();
+      unawaited(_audioRepository.playVictory());
+    }
   }
 
   Future<void> _resolveMismatch(int session, int firstId, int secondId) async {
@@ -554,7 +631,10 @@ class GameCubit extends Cubit<GameState> {
         starSecondsRemaining: hasStarBonus ? 0 : null,
       ),
     );
-    if (isFinished) _timer?.cancel();
+    if (isFinished) {
+      _timer?.cancel();
+      unawaited(_audioRepository.playVictory());
+    }
   }
 
   void _startTimer(int session) {
@@ -646,8 +726,9 @@ class GameCubit extends Cubit<GameState> {
   }
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
     _timer?.cancel();
-    return super.close();
+    await _audioRepository.stopVictory();
+    await super.close();
   }
 }

@@ -5,9 +5,14 @@ import '../../core/theme/app_surfaces.dart';
 import 'game_page.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({required this.onThemeModeChanged, super.key});
+  const HomePage({
+    required this.onThemeModeChanged,
+    required this.onStartAmbient,
+    super.key,
+  });
 
   final ValueChanged<bool> onThemeModeChanged;
+  final VoidCallback onStartAmbient;
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +106,7 @@ class HomePage extends StatelessWidget {
                         width: double.infinity,
                         child: FilledButton.icon(
                           onPressed: () {
+                            onStartAmbient();
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => GamePage(

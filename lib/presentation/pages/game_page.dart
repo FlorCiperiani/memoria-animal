@@ -17,6 +17,12 @@ import '../widgets/score_board.dart';
 
 enum _DiamondOption { purchase, advertisement }
 
+bool _requiresPro(GameStyle style) => const {
+  GameStyle.prairie,
+  GameStyle.mountains,
+  GameStyle.tundra,
+}.contains(style);
+
 class GamePage extends StatelessWidget {
   const GamePage({required this.onThemeModeChanged, super.key});
 
@@ -77,6 +83,7 @@ class _GameView extends StatelessWidget {
                           builder: (context, state) => _Header(
                             onThemeModeChanged: onThemeModeChanged,
                             canChangeTheme: state.phase == GamePhase.initial,
+                            onOpenSettings: () => _openSettings(context),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -90,6 +97,8 @@ class _GameView extends StatelessWidget {
                             state: state,
                             onOpenShop: () => _openDiamondShop(context),
                             onUpgradeAccount: () => _openProUpgrade(context),
+                            onDowngradeAccount: () =>
+                                _confirmProDowngrade(context),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -103,6 +112,7 @@ class _GameView extends StatelessWidget {
                               previous.difficulty != current.difficulty ||
                               previous.level != current.level ||
                               previous.gameStyle != current.gameStyle ||
+                              previous.accountType != current.accountType ||
                               previous.statistics != current.statistics ||
                               previous.statisticsLoaded !=
                                   current.statisticsLoaded ||
@@ -128,12 +138,19 @@ class _GameView extends StatelessWidget {
                                   onSelectLevel: context
                                       .read<GameCubit>()
                                       .selectLevel,
-                                  onSelectStyle: (style) =>
-                                      context.read<GameCubit>().selectStyle(
-                                        style,
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark,
-                                      ),
+                                  onSelectStyle: (style) {
+                                    final cubit = context.read<GameCubit>();
+                                    if (_requiresPro(style) &&
+                                        state.accountType != 'PRO') {
+                                      _showProRequiredDialog(context);
+                                      return;
+                                    }
+                                    cubit.selectStyle(
+                                      style,
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark,
+                                    );
+                                  },
                                   onStart: () =>
                                       context.read<GameCubit>().startGame(
                                         Theme.of(context).brightness ==
@@ -278,7 +295,7 @@ class _GameView extends StatelessWidget {
             FilledButton.icon(
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                await showRandomAdvertisement(context);
+                await _showAdvertisement(context, cubit);
                 if (!context.mounted) return;
                 cubit.resumeGame();
               },
@@ -320,9 +337,11 @@ class _GameView extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () async {
+              if (hasWon) await cubit.stopVictorySound();
+              if (!dialogContext.mounted) return;
               Navigator.of(dialogContext).pop();
               if (hasWon) {
-                await showRandomAdvertisement(context);
+                await _showAdvertisement(context, cubit);
                 if (!context.mounted) return;
               }
               cubit.returnToSetup();
@@ -331,11 +350,14 @@ class _GameView extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () async {
+              if (hasWon) await cubit.stopVictorySound();
+              if (!dialogContext.mounted) return;
               Navigator.of(dialogContext).pop();
               if (hasWon) {
-                await showRandomAdvertisement(context);
+                await _showAdvertisement(context, cubit);
                 if (!context.mounted) return;
               }
+              if (!context.mounted) return;
               cubit.startGame(Theme.of(context).brightness == Brightness.dark);
             },
             style: FilledButton.styleFrom(
@@ -354,9 +376,104 @@ class _GameView extends StatelessWidget {
 
   Future<void> _startNewGame(BuildContext context) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    await showRandomAdvertisement(context);
+    final cubit = context.read<GameCubit>();
+    await _showAdvertisement(context, cubit);
     if (!context.mounted) return;
-    await context.read<GameCubit>().newGame(isDark);
+    await cubit.newGame(isDark);
+  }
+
+  Future<void> _showAdvertisement(BuildContext context, GameCubit cubit) async {
+    if (cubit.state.accountType != 'PRO') {
+      await showRandomAdvertisement(context);
+    }
+  }
+
+  Future<void> _showProRequiredDialog(BuildContext context) {
+    final state = context.read<GameCubit>().state;
+    final palette = AppColors.paletteFor(
+      state.gameStyle,
+      Theme.of(context).brightness == Brightness.dark,
+    );
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Temática exclusiva PRO'),
+        content: const Text(
+          'Pasate a PRO para desbloquear Pradera, Montañas y Tundra, además de jugar sin publicidad.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Salir'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _openProUpgrade(context);
+            },
+            icon: const Icon(Icons.star_rounded),
+            label: const Text('Pasar a PRO'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Color.lerp(
+                palette.secondary,
+                Colors.black,
+                0.08,
+              ),
+              foregroundColor: const Color(0xFF332500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openSettings(BuildContext context) async {
+    final cubit = context.read<GameCubit>();
+    await cubit.ensureProfileLoaded();
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => BlocProvider.value(
+        value: cubit,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: BlocBuilder<GameCubit, GameState>(
+              builder: (context, state) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Configuración',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.music_note_rounded),
+                    title: const Text('Sonido'),
+                    subtitle: const Text(
+                      'Ambiente día/noche y sonido de victoria',
+                    ),
+                    value: state.ambientEnabled,
+                    onChanged: cubit.setAmbientEnabled,
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.volume_up_rounded),
+                    title: const Text('Efectos'),
+                    subtitle: const Text(
+                      'Sonidos de pares correctos e incorrectos',
+                    ),
+                    value: state.effectsEnabled,
+                    onChanged: cubit.setEffectsEnabled,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _showRanking(
@@ -389,7 +506,7 @@ class _GameView extends StatelessWidget {
 
       try {
         if (choice == _DiamondOption.advertisement) {
-          await showRandomAdvertisement(context);
+          await _showAdvertisement(context, cubit);
           if (!context.mounted) return;
         }
         await cubit.purchaseDiamonds(_powerUpReward);
@@ -559,11 +676,11 @@ class _GameView extends StatelessWidget {
   }
 
   void _openProUpgrade(BuildContext context) {
-    final colors = AppColors.paletteFor(
-      context.read<GameCubit>().state.gameStyle,
+    final cubit = context.read<GameCubit>();
+    final palette = AppColors.paletteFor(
+      cubit.state.gameStyle,
       Theme.of(context).brightness == Brightness.dark,
     );
-    final cubit = context.read<GameCubit>();
 
     showModalBottomSheet<void>(
       context: context,
@@ -578,7 +695,7 @@ class _GameView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Desbloqueá beneficios exclusivos y potenciadores especiales. Esta es una activación de demostración, sin cobro real.',
+              'Desbloqueá Pradera, Montañas y Tundra, y jugá sin publicidad. Esta es una activación de demostración, sin cobro real.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -587,13 +704,62 @@ class _GameView extends StatelessWidget {
                   _completeProUpgrade(context, sheetContext, cubit),
               icon: const Icon(Icons.star_rounded),
               label: const Text('Activar PRO (demo, sin cobro)'),
-              style: FilledButton.styleFrom(backgroundColor: colors.secondary),
+              style: FilledButton.styleFrom(
+                backgroundColor: Color.lerp(
+                  palette.secondary,
+                  Colors.black,
+                  0.08,
+                ),
+                foregroundColor: const Color(0xFF332500),
+              ),
             ),
             const SizedBox(height: 12),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmProDowngrade(BuildContext context) async {
+    final cubit = context.read<GameCubit>();
+    final shouldDowngrade = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Volver a la cuenta básica'),
+        content: const Text(
+          'La partida actual se cerrará. Las temáticas Pradera, Montañas y Tundra se bloquearán y volverán a aparecer anuncios.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Volver a BÁSICA'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || shouldDowngrade != true) return;
+
+    cubit.returnToSetup();
+    try {
+      await cubit.downgradeToBasic();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La cuenta volvió a BÁSICA.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cambiar la cuenta. Intentá de nuevo.'),
+        ),
+      );
+    }
   }
 
   Future<void> _completeProUpgrade(
@@ -623,10 +789,12 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.onThemeModeChanged,
     required this.canChangeTheme,
+    required this.onOpenSettings,
   });
 
   final ValueChanged<bool> onThemeModeChanged;
   final bool canChangeTheme;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -650,6 +818,11 @@ class _Header extends StatelessWidget {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
         ),
         const Spacer(),
+        IconButton(
+          tooltip: 'Configuración',
+          icon: const Icon(Icons.settings_rounded),
+          onPressed: onOpenSettings,
+        ),
         if (canChangeTheme)
           _ThemeModeSwitch(
             isDarkMode: Theme.of(context).brightness == Brightness.dark,
@@ -796,35 +969,115 @@ class _GameSetup extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final style in GameStyle.values)
-                    ChoiceChip(
-                      avatar: Text(
-                        style.emoji,
-                        style: const TextStyle(fontSize: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final chipWidth = (constraints.maxWidth - 24) / 4;
+                  final styles = GameStyle.values;
+
+                  Widget buildStyleChip(GameStyle style) {
+                    final isLocked =
+                        _requiresPro(style) && state.accountType != 'PRO';
+                    return SizedBox(
+                      width: chipWidth,
+                      height: 44,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox.expand(
+                            child: ChoiceChip(
+                              showCheckmark: false,
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    style.emoji,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      style.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              selected: state.gameStyle == style,
+                              onSelected: (_) => onSelectStyle(style),
+                              selectedColor: style == GameStyle.tundra
+                                  ? tundraButtonColor
+                                  : selectedButtonColor,
+                              backgroundColor: colors.panel,
+                              labelStyle: TextStyle(
+                                color: state.gameStyle == style
+                                    ? Colors.white
+                                    : colors.textDark,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                          if (isLocked)
+                            Positioned(
+                              top: -3,
+                              right: 8,
+                              child: IgnorePointer(
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: colors.panel,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: colors.panelBorder,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.lock_rounded,
+                                    size: 10,
+                                    color: colors.textMedium,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      label: Text(style.label),
-                      selected: state.gameStyle == style,
-                      onSelected: (_) => onSelectStyle(style),
-                      selectedColor: style == GameStyle.tundra
-                          ? tundraButtonColor
-                          : selectedButtonColor,
-                      backgroundColor: colors.panel,
-                      labelStyle: TextStyle(
-                        color: state.gameStyle == style
-                            ? Colors.white
-                            : colors.textDark,
-                        fontWeight: FontWeight.bold,
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (final style in styles.take(4))
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
+                              child: buildStyleChip(style),
+                            ),
+                        ],
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (final style in styles.skip(4))
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
+                              child: buildStyleChip(style),
+                            ),
+                        ],
                       ),
-                    ),
-                ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 20),
               AnimatedSwitcher(
@@ -1658,11 +1911,13 @@ class _PlayerHeader extends StatelessWidget {
     required this.state,
     required this.onOpenShop,
     required this.onUpgradeAccount,
+    required this.onDowngradeAccount,
   });
 
   final GameState state;
   final VoidCallback onOpenShop;
   final VoidCallback onUpgradeAccount;
+  final VoidCallback onDowngradeAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -1769,13 +2024,23 @@ class _PlayerHeader extends StatelessWidget {
             ),
           ),
         ),
-        if (state.accountType != 'PRO')
-          IconButton(
-            onPressed: onUpgradeAccount,
-            tooltip: 'Pasar a PRO',
-            icon: const Icon(Icons.star_rounded, color: Colors.amber),
-            style: IconButton.styleFrom(backgroundColor: colors.panel),
+        IconButton(
+          onPressed: state.accountType == 'PRO'
+              ? onDowngradeAccount
+              : onUpgradeAccount,
+          tooltip: state.accountType == 'PRO'
+              ? 'Volver a BÁSICA'
+              : 'Pasar a PRO',
+          icon: Icon(
+            state.accountType == 'PRO'
+                ? Icons.undo_rounded
+                : Icons.star_rounded,
+            color: state.accountType == 'PRO'
+                ? colors.secondaryDark
+                : Colors.amber,
           ),
+          style: IconButton.styleFrom(backgroundColor: colors.panel),
+        ),
       ],
     );
   }
