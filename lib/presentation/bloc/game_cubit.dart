@@ -164,18 +164,13 @@ class GameCubit extends Cubit<GameState> {
 
   void returnToThemes() => returnToSetup();
 
-  /// Reinicia la partida manteniendo el orden actual de las cartas o generando nuevas si está vacío.
+  /// Reinicia la partida generando un nuevo tablero y reiniciando el puntaje.
   Future<void> restartGame(bool isDark) {
-    final cards = state.cards.isEmpty
-        ? _generateBoard(
-            _config.pairsCountFor(state.level),
-            state.gameStyle,
-            isDark,
-          )
-        : state.cards
-              .map((card) => card.copyWith(status: CardStatus.hidden))
-              .toList();
-
+    final cards = _generateBoard(
+      _config.pairsCountFor(state.level),
+      state.gameStyle,
+      isDark,
+    );
     return _beginGame(cards, isDark);
   }
 

@@ -263,11 +263,6 @@ class _GameView extends StatelessWidget {
                                         context.read<GameCubit>().pauseGame(),
                                     onReturnToThemes: () =>
                                         _confirmLeaveGame(context),
-                                    onRestart: () =>
-                                        context.read<GameCubit>().restartGame(
-                                          Theme.of(context).brightness ==
-                                              Brightness.dark,
-                                        ),
                                     onNewGame: () => _startNewGame(context),
                                   ),
                                   const SizedBox(height: 8),
@@ -889,6 +884,10 @@ Future<void> _confirmLeaveGame(BuildContext context) async {
     ),
   );
   if (confirmed == true && context.mounted) {
+    if (cubit.state.accountType != 'PRO') {
+      await showRandomAdvertisement(context);
+      if (!context.mounted) return;
+    }
     cubit.returnToSetup();
   }
 }
@@ -2128,7 +2127,6 @@ class _GameControlBar extends StatelessWidget {
     required this.state,
     required this.onPause,
     required this.onReturnToThemes,
-    required this.onRestart,
     required this.onNewGame,
   });
 
@@ -2136,7 +2134,6 @@ class _GameControlBar extends StatelessWidget {
 
   final VoidCallback onPause;
   final VoidCallback onReturnToThemes;
-  final VoidCallback onRestart;
   final VoidCallback onNewGame;
 
   @override
@@ -2146,7 +2143,6 @@ class _GameControlBar extends StatelessWidget {
       Theme.of(context).brightness == Brightness.dark,
     );
     final canPause = state.phase == GamePhase.playing && !state.isResolving;
-    final canRestart = state.cards.isNotEmpty;
     final canNewGame = state.phase != GamePhase.initial;
 
     return Wrap(
@@ -2165,13 +2161,6 @@ class _GameControlBar extends StatelessWidget {
             tooltip: 'Pausar partida',
             color: colors.playfulBlue,
             onPressed: onPause,
-          ),
-        if (canRestart)
-          _GameControlButton(
-            icon: Icons.replay_rounded,
-            tooltip: 'Reiniciar partida',
-            color: const Color(0xFFFF725E),
-            onPressed: onRestart,
           ),
         if (canNewGame)
           _GameControlButton(
