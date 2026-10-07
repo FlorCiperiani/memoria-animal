@@ -53,8 +53,8 @@ class _GamePageState extends State<GamePage> {
 
   Future<void> _showTutorialOnFirstGame() async {
     try {
-      if (await widget.profileRepository.loadTutorialSeen() || !mounted) return;
-      await _showTutorial(context, widget.profileRepository);
+      if (!mounted) return;
+      await showTutorialDialog(context);
     } catch (error, stackTrace) {
       _reportTutorialError(error, stackTrace);
     }
@@ -193,22 +193,23 @@ class _GameView extends StatelessWidget {
                                       .selectLevel,
                                   onSelectStyle: (style) {
                                     final cubit = context.read<GameCubit>();
-                                    if (_requiresPro(style) &&
-                                        state.accountType != 'PRO') {
-                                      _showProRequiredDialog(context);
-                                      return;
-                                    }
                                     cubit.selectStyle(
                                       style,
                                       Theme.of(context).brightness ==
                                           Brightness.dark,
                                     );
                                   },
-                                  onStart: () =>
-                                      context.read<GameCubit>().startGame(
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark,
-                                      ),
+                                  onStart: () {
+                                    if (_requiresPro(state.gameStyle) &&
+                                        state.accountType != 'PRO') {
+                                      _showProRequiredDialog(context);
+                                      return;
+                                    }
+                                    context.read<GameCubit>().startGame(
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark,
+                                    );
+                                  },
                                   onOpenRanking: () => _showRanking(
                                     context,
                                     state.gameStyle,
@@ -260,9 +261,8 @@ class _GameView extends StatelessWidget {
                                     state: state,
                                     onPause: () =>
                                         context.read<GameCubit>().pauseGame(),
-                                    onReturnToThemes: () => context
-                                        .read<GameCubit>()
-                                        .returnToThemes(),
+                                    onReturnToThemes: () =>
+                                        _confirmLeaveGame(context),
                                     onRestart: () =>
                                         context.read<GameCubit>().restartGame(
                                           Theme.of(context).brightness ==
@@ -861,6 +861,38 @@ class _GameView extends StatelessWidget {
   }
 }
 
+Future<void> _confirmLeaveGame(BuildContext context) async {
+  final cubit = context.read<GameCubit>();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text(
+        '¿Estás seguro que querés abandonar la partida?',
+        textAlign: TextAlign.center,
+      ),
+      content: const Text(
+        'Se perderá el progreso de la partida actual.',
+        textAlign: TextAlign.center,
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Sí, abandonar'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true && context.mounted) {
+    cubit.returnToSetup();
+  }
+}
+
 class _GameHeader extends StatelessWidget {
   const _GameHeader({
     required this.state,
@@ -1227,9 +1259,12 @@ class _GameSetup extends StatelessWidget {
       Colors.black,
       isDark ? 0.16 : 0.18,
     )!;
-    final rankingButtonColor = state.gameStyle == GameStyle.tundra && isDark
-        ? const Color(0xFF0D47A1)
-        : colors.primaryDark;
+    final rankingButtonColor = switch (state.gameStyle) {
+      GameStyle.savanna => isDark ? colors.primaryDark : const Color(0xFF9E4700),
+      GameStyle.prairie => isDark ? const Color(0xFF4CAF50) : const Color(0xFF1B5E20),
+      GameStyle.tundra => isDark ? const Color(0xFF0D47A1) : colors.primaryDark,
+      _ => colors.primaryDark,
+    };
 
     return Center(
       child: LayoutBuilder(
@@ -1242,13 +1277,31 @@ class _GameSetup extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Elegí la temática',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: colors.textDark,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: colors.panelBorder,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      'Elegí la temática',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textDark,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1269,20 +1322,47 @@ class _GameSetup extends StatelessWidget {
                             key: const ValueKey('difficulty-step'),
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text(
-                                'Elegí la dificultad',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: colors.textDark,
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: colors.panelBorder,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
+                        width: 1.5,
+                      ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.08),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'La dificultad cambia el tiempo para mirar las cartas.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: colors.textDark),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      'Elegí la dificultad',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textDark,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'La dificultad cambia el tiempo para mirar las cartas.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: colors.textDark,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 12),
                               if (!state.scoresLoaded)
@@ -1353,35 +1433,59 @@ class _GameSetup extends StatelessWidget {
                             key: const ValueKey('level-step'),
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(
-                                children: [
-                                  IconButton(
-                                    tooltip: 'Cambiar dificultad',
-                                    onPressed: onClearDifficulty,
-                                    icon: const Icon(Icons.arrow_back_rounded),
-                                    color: colors.primaryDark,
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      'Dificultad ${state.difficulty!.label}',
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: colors.panelBorder,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
+                        width: 1.5,
+                      ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.08),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'Cambiar dificultad',
+                                          onPressed: onClearDifficulty,
+                                          icon: const Icon(Icons.arrow_back_rounded),
+                                          color: colors.primaryDark,
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            'Dificultad ${state.difficulty!.label}',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: colors.textDark,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 48),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '¡Ahora elegí tu nivel!',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
                                         color: colors.textDark,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 48),
-                                ],
-                              ),
-                              Text(
-                                '¡Ahora elegí tu nivel!',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.textDark,
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -2050,8 +2154,8 @@ class _GameControlBar extends StatelessWidget {
       spacing: 12,
       children: [
         _GameControlButton(
-          icon: Icons.palette_rounded,
-          tooltip: 'Volver a las temáticas',
+          icon: Icons.arrow_back_rounded,
+          tooltip: 'Volver a temáticas',
           color: colors.secondaryDark,
           onPressed: onReturnToThemes,
         ),

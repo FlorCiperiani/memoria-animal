@@ -89,15 +89,9 @@ class _TutorialDialogState extends State<_TutorialDialog> {
                       style: Theme.of(context).textTheme.labelMedium,
                     ),
                     const SizedBox(height: 16),
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Omitir tutorial'),
-                        ),
                         FilledButton.icon(
                           onPressed: () {
                             if (_step == _steps.length - 1) {
@@ -115,6 +109,13 @@ class _TutorialDialogState extends State<_TutorialDialog> {
                             _step == _steps.length - 1
                                 ? 'Terminar'
                                 : 'Siguiente',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Omitir tutorial'),
                           ),
                         ),
                       ],

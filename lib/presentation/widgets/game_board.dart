@@ -96,7 +96,9 @@ class _GameBoardState extends State<GameBoard> {
                     crossAxisCount: columns,
                     mainAxisSpacing: 6,
                     crossAxisSpacing: 6,
-                    childAspectRatio: cellWidth / cellHeight,
+                    childAspectRatio: widget.cards.length <= 6
+                        ? 1.45
+                        : (cellWidth / cellHeight).clamp(0.7, 1.2),
                   ),
                   itemBuilder: (context, index) {
                     final card = widget.cards[index];

@@ -85,7 +85,7 @@ class GameCubit extends Cubit<GameState> {
 
   Future<void> selectStyle(GameStyle style, bool isDark) async {
     if (state.phase != GamePhase.initial || _startingGame) return;
-    emit(state.copyWith(gameStyle: style, scoresLoaded: false));
+    emit(state.copyWith(gameStyle: style));
     final scores = await _scoreRepository.loadScores(style);
     if (isClosed) return;
     emit(state.copyWith(scores: scores, scoresLoaded: true, score: 0));
@@ -118,6 +118,7 @@ class GameCubit extends Cubit<GameState> {
 
   void returnToSetup() {
     unawaited(_audioRepository.stopVictory());
+    unawaited(_audioRepository.resumeThemeAmbient());
     _timer?.cancel();
     _timer = null;
     _session++;
@@ -546,6 +547,7 @@ class GameCubit extends Cubit<GameState> {
     );
     if (isFinished) {
       _timer?.cancel();
+      unawaited(_audioRepository.pauseThemeAmbient());
       unawaited(_audioRepository.playVictory());
     }
   }
@@ -638,6 +640,7 @@ class GameCubit extends Cubit<GameState> {
     );
     if (isFinished) {
       _timer?.cancel();
+      unawaited(_audioRepository.pauseThemeAmbient());
       unawaited(_audioRepository.playVictory());
     }
   }
