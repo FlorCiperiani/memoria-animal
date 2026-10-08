@@ -388,12 +388,9 @@ class _CardVisual {
   void updateCard(MemoryCard nextCard) {
     card = nextCard;
     animateFace(nextCard.isFaceUp ? 1 : 0);
-    if (nextCard.isMatched && !hasMatched) {
-      hasMatched = true;
-      animateOpacity(0);
-    } else if (nextCard.status == CardStatus.hidden && hasMatched) {
-      hasMatched = false;
-      animateOpacity(1);
+    if (nextCard.isMatched != hasMatched) {
+      hasMatched = nextCard.isMatched;
+      animateOpacity(hasMatched ? 0 : 1);
     }
     animateMismatch(nextCard.status == CardStatus.mismatched ? 1 : 0);
   }
