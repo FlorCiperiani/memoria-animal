@@ -374,7 +374,13 @@ class _GameView extends StatelessWidget {
           remainingSeconds: state.remainingSeconds,
           level: state.level,
           animalFact: state.animalFact,
-          onFinished: () async {
+          onExit: () async {
+            await cubit.stopVictorySound();
+            if (!dialogContext.mounted) return;
+            Navigator.of(dialogContext).pop();
+            cubit.returnToSetup();
+          },
+          onNext: () async {
             await cubit.stopVictorySound();
             if (!dialogContext.mounted) return;
             Navigator.of(dialogContext).pop();
@@ -2169,7 +2175,8 @@ class _VictoryRewardDialog extends StatefulWidget {
     required this.remainingSeconds,
     required this.level,
     required this.animalFact,
-    required this.onFinished,
+    required this.onExit,
+    required this.onNext,
   });
 
   final int score;
@@ -2178,7 +2185,8 @@ class _VictoryRewardDialog extends StatefulWidget {
   final int remainingSeconds;
   final GameLevel level;
   final String? animalFact;
-  final VoidCallback onFinished;
+  final VoidCallback onExit;
+  final VoidCallback onNext;
 
   @override
   State<_VictoryRewardDialog> createState() => _VictoryRewardDialogState();
@@ -2246,6 +2254,7 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
+    final darkerGreen = isDark ? Colors.green.shade300 : Colors.green.shade800;
     final cardBg1 = _stage == 1
         ? (isDark ? Colors.amber.shade900 : Colors.amber.shade100)
         : (isDark ? Colors.grey.shade800 : Colors.grey.shade100);
@@ -2299,7 +2308,7 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.greenAccent,
+                            color: darkerGreen,
                           ),
                         ),
                       ],
@@ -2340,10 +2349,10 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
                             const Spacer(),
                             Text(
                               '+$_timeDiamonds 💎',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.greenAccent,
+                                color: darkerGreen,
                               ),
                             ),
                           ],
@@ -2379,10 +2388,10 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
                       Text('💎 Total ganado: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor)),
                       Text(
                         '+$_totalEarnedDiamonds diamantes',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 17,
-                          color: Colors.greenAccent,
+                          color: darkerGreen,
                         ),
                       ),
                     ],
@@ -2417,11 +2426,11 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
       actions: [
         if (_stage >= 3) ...[
           TextButton(
-            onPressed: widget.onFinished,
+            onPressed: widget.onExit,
             child: Text('Salir', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
           ),
           FilledButton(
-            onPressed: widget.onFinished,
+            onPressed: widget.onNext,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(

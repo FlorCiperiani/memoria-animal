@@ -138,11 +138,15 @@ class AudioRepositoryImpl implements AudioRepository {
 
   Future<void> _playEffect(String asset) async {
     if (_isDisposed || !_effectsEnabled) return;
-    await _runAudioOperation(() async {
-      await _effectPlayer.setAudioContext(_effectAudioContext);
-      await _effectPlayer.setVolume(_effectVolume);
-      await _effectPlayer.play(AssetSource(asset));
-    });
+    try {
+      final player = AudioPlayer();
+      await player.setAudioContext(_effectAudioContext);
+      await player.setVolume(_effectVolume);
+      await player.play(AssetSource(asset));
+      player.onPlayerComplete.first.then((_) => player.dispose());
+    } catch (error, stackTrace) {
+      _reportAudioError(error, stackTrace);
+    }
   }
 
   Future<void> _enqueueAmbient(Future<void> Function() operation) {
