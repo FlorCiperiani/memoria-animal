@@ -39,11 +39,13 @@ class GameState extends Equatable {
     this.starSecondsRemaining = 0,
     this.difficulty,
     this.level = GameLevel.one,
+    this.gameMode = GameMode.tiempoExtra,
     this.gameStyle = GameStyle.classic,
     this.scores = const {},
     this.scoresLoaded = false,
     this.selectionRequired = false,
     this.diamonds = 100,
+    this.earnedDiamonds = 0,
     this.username = 'Luna',
     this.accountType = 'BÁSICA',
     this.ambientEnabled = true,
@@ -71,11 +73,13 @@ class GameState extends Equatable {
   final int starSecondsRemaining;
   final GameDifficulty? difficulty;
   final GameLevel level;
+  final GameMode gameMode;
   final GameStyle gameStyle;
   final Map<GameDifficulty, int> scores;
   final bool scoresLoaded;
   final bool selectionRequired;
   final int diamonds;
+  final int earnedDiamonds;
   final String username;
   final String accountType;
   final bool ambientEnabled;
@@ -104,11 +108,13 @@ class GameState extends Equatable {
     GameDifficulty? difficulty,
     bool clearDifficulty = false,
     GameLevel? level,
+    GameMode? gameMode,
     GameStyle? gameStyle,
     Map<GameDifficulty, int>? scores,
     bool? scoresLoaded,
     bool? selectionRequired,
     int? diamonds,
+    int? earnedDiamonds,
     String? username,
     String? accountType,
     bool? ambientEnabled,
@@ -134,11 +140,13 @@ class GameState extends Equatable {
       starSecondsRemaining: starSecondsRemaining ?? this.starSecondsRemaining,
       difficulty: clearDifficulty ? null : difficulty ?? this.difficulty,
       level: level ?? this.level,
+      gameMode: gameMode ?? this.gameMode,
       gameStyle: gameStyle ?? this.gameStyle,
       scores: scores ?? this.scores,
       scoresLoaded: scoresLoaded ?? this.scoresLoaded,
       selectionRequired: selectionRequired ?? this.selectionRequired,
       diamonds: diamonds ?? this.diamonds,
+      earnedDiamonds: earnedDiamonds ?? this.earnedDiamonds,
       username: username ?? this.username,
       accountType: accountType ?? this.accountType,
       ambientEnabled: ambientEnabled ?? this.ambientEnabled,
@@ -164,11 +172,13 @@ class GameState extends Equatable {
     starSecondsRemaining,
     difficulty,
     level,
+    gameMode,
     gameStyle,
     scores,
     scoresLoaded,
     selectionRequired,
     diamonds,
+    earnedDiamonds,
     username,
     accountType,
     ambientEnabled,

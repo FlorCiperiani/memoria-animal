@@ -182,15 +182,9 @@ class _GameView extends StatelessWidget {
                               return Expanded(
                                 child: _GameSetup(
                                   state: state,
-                                  onSelectDifficulty: context
+                                  onSelectMode: context
                                       .read<GameCubit>()
-                                      .selectDifficulty,
-                                  onClearDifficulty: context
-                                      .read<GameCubit>()
-                                      .clearDifficulty,
-                                  onSelectLevel: context
-                                      .read<GameCubit>()
-                                      .selectLevel,
+                                      .selectMode,
                                   onSelectStyle: (style) {
                                     final cubit = context.read<GameCubit>();
                                     cubit.selectStyle(
@@ -1226,12 +1220,122 @@ class _GameStylePickerState extends State<_GameStylePicker> {
   }
 }
 
+class _GameModePicker extends StatelessWidget {
+  const _GameModePicker({
+    required this.selectedMode,
+    required this.panelColor,
+    required this.borderColor,
+    required this.textColor,
+    required this.onSelectMode,
+  });
+
+  final GameMode selectedMode;
+  final Color panelColor;
+  final Color borderColor;
+  final Color textColor;
+  final ValueChanged<GameMode> onSelectMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: borderColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Color.lerp(borderColor, Colors.black, 0.28)!,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Text(
+            'ELEGÍ TU MODO',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            for (final mode in GameMode.values)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: InkWell(
+                    onTap: () => onSelectMode(mode),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selectedMode == mode
+                            ? const Color(0xFFE8F5E9)
+                            : panelColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selectedMode == mode
+                              ? const Color(0xFF4CAF50)
+                              : Color.lerp(borderColor, Colors.black, 0.28)!,
+                          width: selectedMode == mode ? 2 : 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            mode.icon,
+                            size: 24,
+                            color: selectedMode == mode
+                                ? const Color(0xFF2E7D32)
+                                : textColor,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            mode.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: selectedMode == mode
+                                  ? const Color(0xFF1B5E20)
+                                  : textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _GameSetup extends StatelessWidget {
   const _GameSetup({
     required this.state,
-    required this.onSelectDifficulty,
-    required this.onClearDifficulty,
-    required this.onSelectLevel,
+    required this.onSelectMode,
     required this.onSelectStyle,
     required this.onStart,
     required this.onOpenRanking,
@@ -1239,9 +1343,7 @@ class _GameSetup extends StatelessWidget {
   });
 
   final GameState state;
-  final ValueChanged<GameDifficulty> onSelectDifficulty;
-  final VoidCallback onClearDifficulty;
-  final ValueChanged<GameLevel> onSelectLevel;
+  final ValueChanged<GameMode> onSelectMode;
   final ValueChanged<GameStyle> onSelectStyle;
   final VoidCallback onStart;
   final VoidCallback onOpenRanking;
@@ -1314,206 +1416,51 @@ class _GameSetup extends StatelessWidget {
                     onSelectStyle: onSelectStyle,
                   ),
                   const SizedBox(height: 20),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: state.difficulty == null
-                        ? Column(
-                            key: const ValueKey('difficulty-step'),
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: colors.panelBorder,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
-                        width: 1.5,
-                      ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Text(
-                                      'Elegí la dificultad',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: colors.textDark,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'La dificultad cambia el tiempo para mirar las cartas.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: colors.textDark,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              if (!state.scoresLoaded)
-                                const Padding(
-                                  padding: EdgeInsets.all(24),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                )
-                              else
-                                for (final difficulty in GameDifficulty.values)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: SizedBox(
-                                      height: 64,
-                                      child: OutlinedButton(
-                                        onPressed: () =>
-                                            onSelectDifficulty(difficulty),
-                                        style: OutlinedButton.styleFrom(
-                                          alignment: Alignment.centerLeft,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                          ),
-                                          backgroundColor: colors.panel,
-                                          foregroundColor: colors.textDark,
-                                          side: BorderSide(
-                                            color: colors.panelBorder,
-                                            width: 1.5,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                difficulty.label,
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                            Text(
-                                              'Total ${state.scores[difficulty] ?? 0}',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Icon(
-                                              Icons.star_rounded,
-                                              size: 20,
-                                              color: colors.secondaryDark,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                            ],
-                          )
-                        : Column(
-                            key: const ValueKey('level-step'),
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: colors.panelBorder,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
-                        width: 1.5,
-                      ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Cambiar dificultad',
-                                          onPressed: onClearDifficulty,
-                                          icon: const Icon(Icons.arrow_back_rounded),
-                                          color: colors.primaryDark,
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            'Dificultad ${state.difficulty!.label}',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: colors.textDark,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 48),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '¡Ahora elegí tu nivel!',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: colors.textDark,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              for (final level in GameLevel.values)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _LevelChoiceCard(
-                                    level: level,
-                                    isSelected: state.level == level,
-                                    color: selectedButtonColor,
-                                    panelColor: colors.panel,
-                                    borderColor: colors.panelBorder,
-                                    textColor: colors.textDark,
-                                    onTap: () => onSelectLevel(level),
-                                  ),
-                                ),
-                            ],
-                          ),
+                  _GameModePicker(
+                    selectedMode: state.gameMode,
+                    panelColor: colors.panel,
+                    borderColor: colors.panelBorder,
+                    textColor: colors.textDark,
+                    onSelectMode: onSelectMode,
                   ),
-                  if (state.selectionRequired) ...[
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Tenés que seleccionar una dificultad para empezar.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.red, fontSize: 12),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 64,
+                    child: FilledButton(
+                      onPressed: state.statisticsLoaded ? onStart : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: state.gameStyle == GameStyle.tundra
+                            ? tundraButtonColor
+                            : selectedButtonColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Nivel ${state.statistics.totalPlayed + 1}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Desafío: ${state.level.label}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                  const SizedBox(height: 4),
+                  ),
+                  const SizedBox(height: 12),
                   OutlinedButton.icon(
                     onPressed: onOpenRanking,
                     icon: const Icon(Icons.emoji_events_rounded),
@@ -1524,28 +1471,6 @@ class _GameSetup extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  if (state.difficulty != null)
-                    SizedBox(
-                      height: 54,
-                      child: FilledButton.icon(
-                        onPressed: state.scoresLoaded && state.statisticsLoaded
-                            ? onStart
-                            : null,
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: Text('¡Jugar ${state.level.label}!'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: state.gameStyle == GameStyle.tundra
-                              ? tundraButtonColor
-                              : selectedButtonColor,
-                          foregroundColor: Colors.white,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -1556,101 +1481,7 @@ class _GameSetup extends StatelessWidget {
   }
 }
 
-class _LevelChoiceCard extends StatelessWidget {
-  const _LevelChoiceCard({
-    required this.level,
-    required this.isSelected,
-    required this.color,
-    required this.panelColor,
-    required this.borderColor,
-    required this.textColor,
-    required this.onTap,
-  });
 
-  final GameLevel level;
-  final bool isSelected;
-  final Color color;
-  final Color panelColor;
-  final Color borderColor;
-  final Color textColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final foregroundColor = isSelected ? Colors.white : textColor;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? color : panelColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isSelected ? color : borderColor,
-              width: isSelected ? 2 : 1.5,
-            ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            children: [
-              Text(level.emoji, style: const TextStyle(fontSize: 30)),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      level.label,
-                      style: TextStyle(
-                        color: foregroundColor,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      level.description,
-                      style: TextStyle(color: foregroundColor, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${level.pairsCount} pares',
-                    style: TextStyle(
-                      color: foregroundColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    '${level.pairsCount * 2} cartas',
-                    style: TextStyle(color: foregroundColor, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _RankingSheet extends StatelessWidget {
   const _RankingSheet({

@@ -59,7 +59,15 @@ class GameCubit extends Cubit<GameState> {
   Future<void> loadStatistics() async {
     final statistics = await _scoreRepository.loadStatistics();
     if (isClosed) return;
-    emit(state.copyWith(statistics: statistics, statisticsLoaded: true));
+    final level = _getRandomLevel(statistics.totalPlayed);
+    emit(
+      state.copyWith(
+        statistics: statistics,
+        statisticsLoaded: true,
+        level: level,
+        difficulty: state.gameMode.difficulty,
+      ),
+    );
   }
 
   Future<void> _loadProfile() async {
@@ -91,30 +99,31 @@ class GameCubit extends Cubit<GameState> {
     emit(state.copyWith(scores: scores, scoresLoaded: true, score: 0));
   }
 
-  void selectDifficulty(GameDifficulty difficulty) {
-    if (state.phase != GamePhase.initial ||
-        !state.scoresLoaded ||
-        _startingGame) {
-      return;
-    }
+  void selectMode(GameMode mode) {
+    if (state.phase != GamePhase.initial || _startingGame) return;
     emit(
       state.copyWith(
-        difficulty: difficulty,
-        score: 0,
+        gameMode: mode,
+        difficulty: mode.difficulty,
         selectionRequired: false,
       ),
     );
   }
 
-  void clearDifficulty() {
-    if (state.phase != GamePhase.initial || _startingGame) return;
-    emit(state.copyWith(clearDifficulty: true, selectionRequired: false));
+  GameLevel _getRandomLevel(int totalPlayed) {
+    if (totalPlayed == 0) return GameLevel.one;
+    final rnd = math.Random().nextDouble();
+    if (rnd < 0.50) {
+      return GameLevel.one; // 50% fácil
+    } else if (rnd < 0.80) {
+      return GameLevel.two; // 30% medio
+    } else {
+      return GameLevel.three; // 20% difícil
+    }
   }
 
-  void selectLevel(GameLevel level) {
-    if (state.phase != GamePhase.initial || _startingGame) return;
-    emit(state.copyWith(level: level, selectionRequired: false));
-  }
+  GameLevel getNextGameLevel() =>
+      _getRandomLevel(state.statistics.totalPlayed + 1);
 
   void returnToSetup() {
     unawaited(_audioRepository.stopVictory());
@@ -123,6 +132,7 @@ class GameCubit extends Cubit<GameState> {
     _timer = null;
     _session++;
     _selectedStarCardId = null;
+    final level = _getRandomLevel(state.statistics.totalPlayed);
     emit(
       GameState(
         scores: state.scores,
@@ -134,6 +144,9 @@ class GameCubit extends Cubit<GameState> {
         effectsEnabled: state.effectsEnabled,
         profileLoaded: state.profileLoaded,
         gameStyle: state.gameStyle,
+        gameMode: state.gameMode,
+        difficulty: state.gameMode.difficulty,
+        level: level,
         statistics: state.statistics,
         statisticsLoaded: state.statisticsLoaded,
       ),
@@ -142,13 +155,18 @@ class GameCubit extends Cubit<GameState> {
 
   /// Inicia una partida nueva con un tablero aleatorio.
   Future<void> startGame(bool isDark) {
-    if (state.difficulty == null) {
-      emit(state.copyWith(selectionRequired: true));
-      return Future<void>.value();
-    }
+    final level = _getRandomLevel(state.statistics.totalPlayed);
+    final difficulty = state.gameMode.difficulty;
+    emit(
+      state.copyWith(
+        level: level,
+        difficulty: difficulty,
+        selectionRequired: false,
+      ),
+    );
     return _beginGame(
       _generateBoard(
-        _config.pairsCountFor(state.level),
+        _config.pairsCountFor(level),
         state.gameStyle,
         isDark,
       ),
@@ -222,6 +240,7 @@ class GameCubit extends Cubit<GameState> {
         elapsedSeconds: 0,
         difficulty: difficulty,
         level: state.level,
+        gameMode: state.gameMode,
         gameStyle: state.gameStyle,
         scores: state.scores,
         scoresLoaded: state.scoresLoaded,
@@ -483,6 +502,20 @@ class GameCubit extends Cubit<GameState> {
     }
   }
 
+  Future<(int, int)> _calculateDiamonds(bool isFinished) async {
+    if (!isFinished) return (state.diamonds, 0);
+    final baseReward = switch (state.level) {
+      GameLevel.one => 4,
+      GameLevel.two => 7,
+      GameLevel.three => 10,
+    };
+    final timeBonus = (state.remainingSeconds ~/ 12).clamp(1, 8);
+    final earned = (baseReward + timeBonus).clamp(3, 20);
+    final newDiamonds = state.diamonds + earned;
+    await _profileRepository.saveDiamonds(newDiamonds);
+    return (newDiamonds, earned);
+  }
+
   Future<void> _resolveMatch(
     int session,
     int firstId,
@@ -528,11 +561,15 @@ class GameCubit extends Cubit<GameState> {
     if (!_isActive(session)) return;
     if (hasStarBonus) _starCooldownSeconds = 10;
 
+    final (newDiamonds, earnedDiamonds) = await _calculateDiamonds(isFinished);
+
     emit(
       state.copyWith(
         cards: cards,
         isResolving: false,
         score: score,
+        diamonds: newDiamonds,
+        earnedDiamonds: earnedDiamonds,
         scores: {...state.scores, difficulty: totalScore},
         statistics: statistics,
         phase: isFinished ? GamePhase.finished : GamePhase.playing,
@@ -621,11 +658,15 @@ class GameCubit extends Cubit<GameState> {
     if (!_isActive(session)) return;
     if (hasStarBonus) _starCooldownSeconds = 10;
 
+    final (newDiamonds, earnedDiamonds) = await _calculateDiamonds(isFinished);
+
     emit(
       state.copyWith(
         cards: cards,
         isResolving: false,
         score: score,
+        diamonds: newDiamonds,
+        earnedDiamonds: earnedDiamonds,
         scores: {...state.scores, difficulty: totalScore},
         statistics: statistics,
         phase: isFinished ? GamePhase.finished : GamePhase.playing,
