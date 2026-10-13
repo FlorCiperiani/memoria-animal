@@ -182,15 +182,9 @@ class _GameView extends StatelessWidget {
                               return Expanded(
                                 child: _GameSetup(
                                   state: state,
-                                  onSelectDifficulty: context
+                                  onSelectMode: context
                                       .read<GameCubit>()
-                                      .selectDifficulty,
-                                  onClearDifficulty: context
-                                      .read<GameCubit>()
-                                      .clearDifficulty,
-                                  onSelectLevel: context
-                                      .read<GameCubit>()
-                                      .selectLevel,
+                                      .selectMode,
                                   onSelectStyle: (style) {
                                     final cubit = context.read<GameCubit>();
                                     cubit.selectStyle(
@@ -364,62 +358,86 @@ class _GameView extends StatelessWidget {
     );
   }
 
-  Future<void> _showEndDialog(BuildContext context, GameState state) {
+  Future<void> _showEndDialog(BuildContext context, GameState state) async {
     final cubit = context.read<GameCubit>();
     final hasWon = state.phase == GamePhase.finished;
+    final nextLevel = cubit.getNextGameLevel();
+
+    if (hasWon) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => _VictoryRewardDialog(
+          score: state.score,
+          moves: state.moves,
+          elapsedSeconds: state.elapsedSeconds,
+          remainingSeconds: state.remainingSeconds,
+          level: state.level,
+          animalFact: state.animalFact,
+          onFinished: () async {
+            await cubit.stopVictorySound();
+            if (!dialogContext.mounted) return;
+            Navigator.of(dialogContext).pop();
+            await _showAdvertisement(context, cubit);
+            if (!context.mounted) return;
+            cubit.startGame(Theme.of(context).brightness == Brightness.dark);
+          },
+        ),
+      );
+      return;
+    }
 
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          hasWon ? '¡Ganaste! 🎉' : 'Se acabó el tiempo',
+        title: const Text(
+          'Se acabó el tiempo',
           textAlign: TextAlign.center,
         ),
         content: Text(
-          [
-            'Puntaje: ${state.score}\nIntentos: ${state.moves}',
-            if (hasWon && state.animalFact != null)
-              '\n¿Sabías que...? ${state.animalFact}',
-          ].join('\n'),
+          'Puntaje: ${state.score}\nIntentos: ${state.moves}',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 18),
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
-            onPressed: () async {
-              if (hasWon) await cubit.stopVictorySound();
-              if (!dialogContext.mounted) return;
+            onPressed: () {
               Navigator.of(dialogContext).pop();
-              if (hasWon) {
-                await _showAdvertisement(context, cubit);
-                if (!context.mounted) return;
-              }
               cubit.returnToSetup();
             },
             child: const Text('Salir'),
           ),
           FilledButton(
-            onPressed: () async {
-              if (hasWon) await cubit.stopVictorySound();
-              if (!dialogContext.mounted) return;
+            onPressed: () {
               Navigator.of(dialogContext).pop();
-              if (hasWon) {
-                await _showAdvertisement(context, cubit);
-                if (!context.mounted) return;
-              }
-              if (!context.mounted) return;
               cubit.startGame(Theme.of(context).brightness == Brightness.dark);
             },
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              textStyle: const TextStyle(fontSize: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
             ),
-            child: const Text('Otra partida'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Siguiente partida',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Desafío: ${nextLevel.label}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1226,12 +1244,122 @@ class _GameStylePickerState extends State<_GameStylePicker> {
   }
 }
 
+class _GameModePicker extends StatelessWidget {
+  const _GameModePicker({
+    required this.selectedMode,
+    required this.panelColor,
+    required this.borderColor,
+    required this.textColor,
+    required this.onSelectMode,
+  });
+
+  final GameMode selectedMode;
+  final Color panelColor;
+  final Color borderColor;
+  final Color textColor;
+  final ValueChanged<GameMode> onSelectMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: borderColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Color.lerp(borderColor, Colors.black, 0.28)!,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Text(
+            'ELEGÍ TU MODO',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            for (final mode in GameMode.values)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: InkWell(
+                    onTap: () => onSelectMode(mode),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selectedMode == mode
+                            ? const Color(0xFFE8F5E9)
+                            : panelColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selectedMode == mode
+                              ? const Color(0xFF4CAF50)
+                              : Color.lerp(borderColor, Colors.black, 0.28)!,
+                          width: selectedMode == mode ? 2 : 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            mode.icon,
+                            size: 24,
+                            color: selectedMode == mode
+                                ? const Color(0xFF2E7D32)
+                                : textColor,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            mode.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: selectedMode == mode
+                                  ? const Color(0xFF1B5E20)
+                                  : textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _GameSetup extends StatelessWidget {
   const _GameSetup({
     required this.state,
-    required this.onSelectDifficulty,
-    required this.onClearDifficulty,
-    required this.onSelectLevel,
+    required this.onSelectMode,
     required this.onSelectStyle,
     required this.onStart,
     required this.onOpenRanking,
@@ -1239,9 +1367,7 @@ class _GameSetup extends StatelessWidget {
   });
 
   final GameState state;
-  final ValueChanged<GameDifficulty> onSelectDifficulty;
-  final VoidCallback onClearDifficulty;
-  final ValueChanged<GameLevel> onSelectLevel;
+  final ValueChanged<GameMode> onSelectMode;
   final ValueChanged<GameStyle> onSelectStyle;
   final VoidCallback onStart;
   final VoidCallback onOpenRanking;
@@ -1314,206 +1440,51 @@ class _GameSetup extends StatelessWidget {
                     onSelectStyle: onSelectStyle,
                   ),
                   const SizedBox(height: 20),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: state.difficulty == null
-                        ? Column(
-                            key: const ValueKey('difficulty-step'),
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: colors.panelBorder,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
-                        width: 1.5,
-                      ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Text(
-                                      'Elegí la dificultad',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: colors.textDark,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'La dificultad cambia el tiempo para mirar las cartas.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: colors.textDark,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              if (!state.scoresLoaded)
-                                const Padding(
-                                  padding: EdgeInsets.all(24),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                )
-                              else
-                                for (final difficulty in GameDifficulty.values)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: SizedBox(
-                                      height: 64,
-                                      child: OutlinedButton(
-                                        onPressed: () =>
-                                            onSelectDifficulty(difficulty),
-                                        style: OutlinedButton.styleFrom(
-                                          alignment: Alignment.centerLeft,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                          ),
-                                          backgroundColor: colors.panel,
-                                          foregroundColor: colors.textDark,
-                                          side: BorderSide(
-                                            color: colors.panelBorder,
-                                            width: 1.5,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                difficulty.label,
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                            Text(
-                                              'Total ${state.scores[difficulty] ?? 0}',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Icon(
-                                              Icons.star_rounded,
-                                              size: 20,
-                                              color: colors.secondaryDark,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                            ],
-                          )
-                        : Column(
-                            key: const ValueKey('level-step'),
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: colors.panelBorder,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
-                        width: 1.5,
-                      ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Cambiar dificultad',
-                                          onPressed: onClearDifficulty,
-                                          icon: const Icon(Icons.arrow_back_rounded),
-                                          color: colors.primaryDark,
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            'Dificultad ${state.difficulty!.label}',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: colors.textDark,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 48),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '¡Ahora elegí tu nivel!',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: colors.textDark,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              for (final level in GameLevel.values)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _LevelChoiceCard(
-                                    level: level,
-                                    isSelected: state.level == level,
-                                    color: selectedButtonColor,
-                                    panelColor: colors.panel,
-                                    borderColor: colors.panelBorder,
-                                    textColor: colors.textDark,
-                                    onTap: () => onSelectLevel(level),
-                                  ),
-                                ),
-                            ],
-                          ),
+                  _GameModePicker(
+                    selectedMode: state.gameMode,
+                    panelColor: colors.panel,
+                    borderColor: colors.panelBorder,
+                    textColor: colors.textDark,
+                    onSelectMode: onSelectMode,
                   ),
-                  if (state.selectionRequired) ...[
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Tenés que seleccionar una dificultad para empezar.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.red, fontSize: 12),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 64,
+                    child: FilledButton(
+                      onPressed: state.statisticsLoaded ? onStart : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: state.gameStyle == GameStyle.tundra
+                            ? tundraButtonColor
+                            : selectedButtonColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Nivel ${state.statistics.totalPlayed + 1}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Desafío: ${state.level.label}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                  const SizedBox(height: 4),
+                  ),
+                  const SizedBox(height: 12),
                   OutlinedButton.icon(
                     onPressed: onOpenRanking,
                     icon: const Icon(Icons.emoji_events_rounded),
@@ -1524,28 +1495,6 @@ class _GameSetup extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  if (state.difficulty != null)
-                    SizedBox(
-                      height: 54,
-                      child: FilledButton.icon(
-                        onPressed: state.scoresLoaded && state.statisticsLoaded
-                            ? onStart
-                            : null,
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: Text('¡Jugar ${state.level.label}!'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: state.gameStyle == GameStyle.tundra
-                              ? tundraButtonColor
-                              : selectedButtonColor,
-                          foregroundColor: Colors.white,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -1556,101 +1505,7 @@ class _GameSetup extends StatelessWidget {
   }
 }
 
-class _LevelChoiceCard extends StatelessWidget {
-  const _LevelChoiceCard({
-    required this.level,
-    required this.isSelected,
-    required this.color,
-    required this.panelColor,
-    required this.borderColor,
-    required this.textColor,
-    required this.onTap,
-  });
 
-  final GameLevel level;
-  final bool isSelected;
-  final Color color;
-  final Color panelColor;
-  final Color borderColor;
-  final Color textColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final foregroundColor = isSelected ? Colors.white : textColor;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? color : panelColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isSelected ? color : borderColor,
-              width: isSelected ? 2 : 1.5,
-            ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            children: [
-              Text(level.emoji, style: const TextStyle(fontSize: 30)),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      level.label,
-                      style: TextStyle(
-                        color: foregroundColor,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      level.description,
-                      style: TextStyle(color: foregroundColor, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${level.pairsCount} pares',
-                    style: TextStyle(
-                      color: foregroundColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    '${level.pairsCount * 2} cartas',
-                    style: TextStyle(color: foregroundColor, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _RankingSheet extends StatelessWidget {
   const _RankingSheet({
@@ -2303,5 +2158,285 @@ class _PairEncouragementOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox.shrink();
+  }
+}
+
+class _VictoryRewardDialog extends StatefulWidget {
+  const _VictoryRewardDialog({
+    required this.score,
+    required this.moves,
+    required this.elapsedSeconds,
+    required this.remainingSeconds,
+    required this.level,
+    required this.animalFact,
+    required this.onFinished,
+  });
+
+  final int score;
+  final int moves;
+  final int elapsedSeconds;
+  final int remainingSeconds;
+  final GameLevel level;
+  final String? animalFact;
+  final VoidCallback onFinished;
+
+  @override
+  State<_VictoryRewardDialog> createState() => _VictoryRewardDialogState();
+}
+
+class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
+  int _scoreDiamonds = 0;
+  int _targetScoreDiamonds = 0;
+
+  int _timeDiamonds = 0;
+  int _targetTimeBonus = 0;
+
+  int _totalEarnedDiamonds = 0;
+  int _stage = 0; // 0: initial, 1: score anim, 2: time anim, 3: finished
+
+  String get _speedMessage {
+    if (widget.remainingSeconds >= 35) return '¡Muy veloz! ⚡';
+    if (widget.remainingSeconds >= 15) return '¡Muy bien! 👍';
+    return '¡Puede mejorar! 🌱';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _targetScoreDiamonds = widget.score ~/ 15;
+    _targetTimeBonus = (widget.remainingSeconds ~/ 12).clamp(1, 8);
+    _startAnimationSequence();
+  }
+
+  Future<void> _startAnimationSequence() async {
+    setState(() => _stage = 1);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    final scoreSteps = _targetScoreDiamonds > 0 ? _targetScoreDiamonds : 1;
+    for (int i = 0; i < scoreSteps; i++) {
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 70));
+      setState(() {
+        _scoreDiamonds += 1;
+        _totalEarnedDiamonds += 1;
+      });
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    setState(() => _stage = 2);
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+
+    final timeSteps = _targetTimeBonus > 0 ? _targetTimeBonus : 1;
+    for (int i = 0; i < timeSteps; i++) {
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      setState(() {
+        _timeDiamonds += 1;
+        _totalEarnedDiamonds += 1;
+      });
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    setState(() => _stage = 3);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final cardBg1 = _stage == 1
+        ? (isDark ? Colors.amber.shade900 : Colors.amber.shade100)
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade100);
+    final cardBg2 = _stage == 2
+        ? (isDark ? Colors.blue.shade900 : Colors.blue.shade100)
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade100);
+
+    return AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      title: Text(
+        '¡Ganaste! 🎉',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24, color: textColor),
+      ),
+      content: SizedBox(
+        width: 320,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: _stage == 1 ? 1.25 : 1.0,
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cardBg1,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _stage == 1 ? Colors.amber : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.stars_rounded, color: Colors.amber, size: 30),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Puntaje total: ${widget.score}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      if (_stage >= 1 && _scoreDiamonds > 0) ...[
+                        const Spacer(),
+                        Text(
+                          '+$_scoreDiamonds 💎',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.greenAccent,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              AnimatedScale(
+                scale: _stage == 2 ? 1.25 : 1.0,
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cardBg2,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _stage == 2 ? Colors.blue : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.timer_rounded, color: Colors.blueAccent, size: 30),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Tiempo: ${widget.elapsedSeconds}s',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          if (_stage >= 2) ...[
+                            const Spacer(),
+                            Text(
+                              '+$_timeDiamonds 💎',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.greenAccent,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (_stage >= 2) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _speedMessage,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.cyanAccent : Colors.blue.shade800,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (_stage >= 3) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.green.shade900.withValues(alpha: 0.5) : Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.shade400, width: 2),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('💎 Total ganado: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor)),
+                      Text(
+                        '+$_totalEarnedDiamonds diamantes',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 17,
+                          color: Colors.greenAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (widget.animalFact != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.purple.shade900.withValues(alpha: 0.4) : Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? Colors.purple.shade400 : Colors.purple.shade200, width: 1.5),
+                  ),
+                  child: Text(
+                    '¿Sabías que...?\n${widget.animalFact}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.purple.shade100 : Colors.purple.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        if (_stage >= 3) ...[
+          TextButton(
+            onPressed: widget.onFinished,
+            child: Text('Salir', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+          ),
+          FilledButton(
+            onPressed: widget.onFinished,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: const Text('Siguiente partida'),
+          ),
+        ] else ...[
+          TextButton(
+            onPressed: () => setState(() => _stage = 3),
+            child: Text('Saltar animación', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+          ),
+        ],
+      ],
+    );
   }
 }

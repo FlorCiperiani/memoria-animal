@@ -1,6 +1,29 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
 
 enum GameDifficulty { easy, medium, hard }
+
+enum GameMode { tiempoExtra, tiempoJusto, contraReloj }
+
+extension GameModeDetails on GameMode {
+  String get label => switch (this) {
+    GameMode.tiempoExtra => 'Tiempo extra',
+    GameMode.tiempoJusto => 'Tiempo justo',
+    GameMode.contraReloj => 'Contra reloj',
+  };
+
+  IconData get icon => switch (this) {
+    GameMode.tiempoExtra => Icons.hourglass_empty_rounded,
+    GameMode.tiempoJusto => Icons.timer_rounded,
+    GameMode.contraReloj => Icons.bolt_rounded,
+  };
+
+  GameDifficulty get difficulty => switch (this) {
+    GameMode.tiempoExtra => GameDifficulty.easy,
+    GameMode.tiempoJusto => GameDifficulty.medium,
+    GameMode.contraReloj => GameDifficulty.hard,
+  };
+}
 
 enum GameLevel { one, two, three }
 
@@ -12,15 +35,15 @@ extension GameLevelDetails on GameLevel {
   };
 
   String get label => switch (this) {
-    GameLevel.one => 'Nivel 1',
-    GameLevel.two => 'Nivel 2',
-    GameLevel.three => 'Nivel 3',
+    GameLevel.one => 'Fácil',
+    GameLevel.two => 'Medio',
+    GameLevel.three => 'Difícil',
   };
 
   String get description => switch (this) {
-    GameLevel.one => 'Para empezar y conocer a los animales',
-    GameLevel.two => 'Un poquito más de memoria',
-    GameLevel.three => '¡Un gran desafío!',
+    GameLevel.one => 'Nivel fácil (6 cartas)',
+    GameLevel.two => 'Nivel medio (12 cartas)',
+    GameLevel.three => 'Nivel difícil (18 cartas)',
   };
 
   String get emoji => switch (this) {

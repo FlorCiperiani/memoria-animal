@@ -124,6 +124,7 @@ class AudioRepositoryImpl implements AudioRepository {
     await _enqueueVictory(() async {
       if (_isDisposed || !_ambientEnabled) return;
       await _victoryPlayer.setAudioContext(_effectAudioContext);
+      await _victoryPlayer.setReleaseMode(ReleaseMode.loop);
       await _victoryPlayer.setVolume(_effectVolume);
       await _victoryPlayer.play(AssetSource(_victoryEffect));
     });
