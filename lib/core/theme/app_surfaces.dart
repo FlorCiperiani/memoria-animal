@@ -174,33 +174,33 @@ class _LandscapePainter extends CustomPainter {
     final snowPaint = Paint()
       ..color = Colors.white.withValues(alpha: isDark ? 0.85 : 0.65);
     final farPeak = Path()
-      ..moveTo(size.width * 0.28, size.height * 0.3)
-      ..lineTo(size.width * 0.02, size.height * 0.78)
-      ..lineTo(size.width * 0.62, size.height * 0.78)
+      ..moveTo(size.width * 0.28, size.height * 0.15)
+      ..lineTo(size.width * 0.02, size.height * 0.62)
+      ..lineTo(size.width * 0.62, size.height * 0.62)
       ..close();
     final nearPeak = Path()
-      ..moveTo(size.width * 0.69, size.height * 0.18)
-      ..lineTo(size.width * 0.34, size.height * 0.82)
-      ..lineTo(size.width * 1.05, size.height * 0.82)
+      ..moveTo(size.width * 0.69, size.height * 0.08)
+      ..lineTo(size.width * 0.34, size.height * 0.66)
+      ..lineTo(size.width * 1.05, size.height * 0.66)
       ..close();
     canvas
       ..drawPath(farPeak, farPaint)
       ..drawPath(nearPeak, nearPaint)
       ..drawPath(
         Path()
-          ..moveTo(size.width * 0.28, size.height * 0.3)
-          ..lineTo(size.width * 0.19, size.height * 0.47)
-          ..lineTo(size.width * 0.31, size.height * 0.42)
-          ..lineTo(size.width * 0.39, size.height * 0.49)
+          ..moveTo(size.width * 0.28, size.height * 0.15)
+          ..lineTo(size.width * 0.19, size.height * 0.32)
+          ..lineTo(size.width * 0.31, size.height * 0.27)
+          ..lineTo(size.width * 0.39, size.height * 0.34)
           ..close(),
         snowPaint,
       )
       ..drawPath(
         Path()
-          ..moveTo(size.width * 0.69, size.height * 0.18)
-          ..lineTo(size.width * 0.57, size.height * 0.4)
-          ..lineTo(size.width * 0.71, size.height * 0.35)
-          ..lineTo(size.width * 0.82, size.height * 0.45)
+          ..moveTo(size.width * 0.69, size.height * 0.08)
+          ..lineTo(size.width * 0.57, size.height * 0.25)
+          ..lineTo(size.width * 0.71, size.height * 0.20)
+          ..lineTo(size.width * 0.82, size.height * 0.30)
           ..close(),
         snowPaint,
       );
@@ -214,28 +214,28 @@ class _LandscapePainter extends CustomPainter {
       ..color = (isDark ? const Color(0xFF6F9BAC) : const Color(0xFF8FC9D2))
           .withValues(alpha: isDark ? 1 : 0.34);
     final bank = Path()
-      ..moveTo(0, size.height * 0.78)
+      ..moveTo(0, size.height * 0.52)
       ..quadraticBezierTo(
         size.width * 0.28,
-        size.height * 0.69,
+        size.height * 0.44,
         size.width * 0.52,
-        size.height * 0.79,
+        size.height * 0.54,
       )
       ..quadraticBezierTo(
         size.width * 0.78,
-        size.height * 0.88,
+        size.height * 0.58,
         size.width,
-        size.height * 0.75,
+        size.height * 0.50,
       )
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
     final iceberg = Path()
-      ..moveTo(size.width * 0.73, size.height * 0.77)
-      ..lineTo(size.width * 0.82, size.height * 0.59)
-      ..lineTo(size.width * 0.9, size.height * 0.72)
-      ..lineTo(size.width * 0.96, size.height * 0.64)
-      ..lineTo(size.width, size.height * 0.78)
+      ..moveTo(size.width * 0.73, size.height * 0.50)
+      ..lineTo(size.width * 0.82, size.height * 0.32)
+      ..lineTo(size.width * 0.9, size.height * 0.45)
+      ..lineTo(size.width * 0.96, size.height * 0.38)
+      ..lineTo(size.width, size.height * 0.50)
       ..close();
     canvas
       ..drawPath(bank, snow)
@@ -507,22 +507,23 @@ class _SavannaPainter extends CustomPainter {
       ..color = (isDark ? const Color(0xFF331E12) : const Color(0xFFFFB300))
           .withValues(alpha: isDark ? 1 : 0.25);
     canvas.drawRect(
-      Rect.fromLTWH(0, size.height * 0.8, size.width, size.height * 0.2),
+      Rect.fromLTWH(0, size.height * 0.65, size.width, size.height * 0.35),
       groundPaint,
     );
 
     _drawReferenceAcacia(
       canvas,
-      Offset(size.width * 0.28, size.height * 0.82),
+      Offset(size.width * 0.28, size.height * 0.68),
       trunkPaint,
       foliagePaint,
+      scale: 0.6,
     );
     _drawReferenceAcacia(
       canvas,
-      Offset(size.width * 0.78, size.height * 0.78),
+      Offset(size.width * 0.78, size.height * 0.64),
       trunkPaint,
       foliagePaint,
-      scale: 0.65,
+      scale: 0.5,
     );
   }
 

@@ -61,6 +61,83 @@ extension GameDifficultyLabel on GameDifficulty {
   };
 }
 
+/// Sistema centralizado de economía de diamantes del juego.
+class GameEconomy {
+  const GameEconomy._();
+
+  // Costos actualizados y equilibrados de las ayudas
+  static const int revealCardCost = 10;
+  static const int findPairCost = 30;
+  static const int extraTimeCost = 20;
+
+  // Recompensas base por dificultad
+  static int baseRewardFor(GameLevel level) => switch (level) {
+    GameLevel.one => 10,   // Fácil (3 pares)
+    GameLevel.two => 20,   // Medio (6 pares)
+    GameLevel.three => 30, // Difícil (9 pares)
+  };
+
+  // Multiplicadores por modo de juego
+  static double multiplierFor(GameMode mode) => switch (mode) {
+    GameMode.tiempoExtra => 0.75,
+    GameMode.tiempoJusto => 1.00,
+    GameMode.contraReloj => 1.30,
+  };
+
+  // Límites máximos de diamantes por partida (9 combinaciones Mode x Level)
+  static int maxRewardFor(GameMode mode, GameLevel level) {
+    switch (mode) {
+      case GameMode.tiempoExtra:
+        return switch (level) {
+          GameLevel.one => 6,
+          GameLevel.two => 12,
+          GameLevel.three => 18,
+        };
+      case GameMode.tiempoJusto:
+        return switch (level) {
+          GameLevel.one => 8,
+          GameLevel.two => 16,
+          GameLevel.three => 24,
+        };
+      case GameMode.contraReloj:
+        return switch (level) {
+          GameLevel.one => 10,
+          GameLevel.two => 20,
+          GameLevel.three => 30,
+        };
+    }
+  }
+
+  /// Fórmula determinista de cálculo de diamantes ganados al completar una partida.
+  static int calculateReward({
+    required GameLevel level,
+    required GameMode mode,
+    required int moves,
+    required int remainingSeconds,
+    required bool isFinished,
+  }) {
+    if (!isFinished) return 0;
+
+    final minAttempts = level.pairsCount;
+    final actualMoves = moves < minAttempts ? minAttempts : moves;
+    
+    // Factor de precisión: menor cantidad de intentos adicionales da mayor bonificación
+    final precisionFactor = minAttempts / actualMoves;
+
+    // Factor de tiempo: terminar con más segundos restantes
+    final timeFactor = 0.5 + 0.5 * (remainingSeconds / 60.0).clamp(0.0, 1.0);
+
+    final base = baseRewardFor(level);
+    final multiplier = multiplierFor(mode);
+
+    // Cálculo único con redondeo final a entero positivo
+    final rawReward = (base * multiplier * precisionFactor * timeFactor).round();
+    final maxCap = maxRewardFor(mode, level);
+
+    return rawReward.clamp(1, maxCap);
+  }
+}
+
 /// Reglas configurables del juego.
 class GameConfig extends Equatable {
   const GameConfig({
@@ -78,6 +155,29 @@ class GameConfig extends Equatable {
   final int pairsCount;
 
   int pairsCountFor(GameLevel level) => level.pairsCount;
+
+  Duration roundDurationFor(GameLevel level, GameMode mode) {
+    switch (level) {
+      case GameLevel.one: // Fácil
+        return switch (mode) {
+          GameMode.tiempoExtra => const Duration(seconds: 60),
+          GameMode.tiempoJusto => const Duration(seconds: 45),
+          GameMode.contraReloj => const Duration(seconds: 30),
+        };
+      case GameLevel.two: // Medio
+        return switch (mode) {
+          GameMode.tiempoExtra => const Duration(seconds: 100),
+          GameMode.tiempoJusto => const Duration(seconds: 75),
+          GameMode.contraReloj => const Duration(seconds: 50),
+        };
+      case GameLevel.three: // Difícil
+        return switch (mode) {
+          GameMode.tiempoExtra => const Duration(seconds: 160),
+          GameMode.tiempoJusto => const Duration(seconds: 120),
+          GameMode.contraReloj => const Duration(seconds: 80),
+        };
+    }
+  }
 
   /// Tiempo que se muestran todas las fichas al comenzar.
   final Duration previewDuration;

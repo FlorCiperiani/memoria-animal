@@ -237,13 +237,7 @@ class _GameView extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        'Dificultad: ${state.difficulty!.label}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${state.level.label} ${state.level.emoji}',
+                                        'Dificultad: ${state.level.label} ${state.level.emoji}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -1337,13 +1331,18 @@ class _GameModePicker extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            mode.label,
+                            switch (mode) {
+                              GameMode.tiempoExtra => 'Tiempo\nextra',
+                              GameMode.tiempoJusto => 'Tiempo\njusto',
+                              GameMode.contraReloj => 'Contra\nreloj',
+                            },
                             textAlign: TextAlign.center,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
+                              height: 1.1,
                               color: selectedMode == mode
                                   ? const Color(0xFF1B5E20)
                                   : textColor,
@@ -1397,111 +1396,114 @@ class _GameSetup extends StatelessWidget {
       _ => colors.primaryDark,
     };
 
-    return Center(
-      child: LayoutBuilder(
-        builder: (context, constraints) => FittedBox(
-          fit: BoxFit.scaleDown,
-          child: SizedBox(
-            width: constraints.maxWidth > 520 ? 520 : constraints.maxWidth,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: colors.panelBorder,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: colors.panelBorder,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Color.lerp(colors.panelBorder, Colors.black, 0.28)!,
+                          width: 1.5,
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      'Elegí la temática',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: colors.textDark,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _GameStylePicker(
-                    selectedStyle: state.gameStyle,
-                    accountType: state.accountType,
-                    selectedColor: selectedButtonColor,
-                    panelColor: colors.panel,
-                    borderColor: colors.panelBorder,
-                    textColor: colors.textDark,
-                    onSelectStyle: onSelectStyle,
-                  ),
-                  const SizedBox(height: 20),
-                  _GameModePicker(
-                    selectedMode: state.gameMode,
-                    panelColor: colors.panel,
-                    borderColor: colors.panelBorder,
-                    textColor: colors.textDark,
-                    onSelectMode: onSelectMode,
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    height: 64,
-                    child: FilledButton(
-                      onPressed: state.statisticsLoaded ? onStart : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: state.gameStyle == GameStyle.tundra
-                            ? tundraButtonColor
-                            : selectedButtonColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Nivel ${state.statistics.totalPlayed + 1}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Desafío: ${state.level.label}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white70,
-                            ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
+                      child: Text(
+                        'Elegí la temática',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textDark,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: onOpenRanking,
-                    icon: const Icon(Icons.emoji_events_rounded),
-                    label: const Text('Ver ranking y estadísticas'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: rankingButtonColor,
-                      side: BorderSide(color: rankingButtonColor),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    const SizedBox(height: 12),
+                    _GameStylePicker(
+                      selectedStyle: state.gameStyle,
+                      accountType: state.accountType,
+                      selectedColor: selectedButtonColor,
+                      panelColor: colors.panel,
+                      borderColor: colors.panelBorder,
+                      textColor: colors.textDark,
+                      onSelectStyle: onSelectStyle,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    _GameModePicker(
+                      selectedMode: state.gameMode,
+                      panelColor: colors.panel,
+                      borderColor: colors.panelBorder,
+                      textColor: colors.textDark,
+                      onSelectMode: onSelectMode,
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 64,
+                      child: FilledButton(
+                        onPressed: state.statisticsLoaded ? onStart : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: state.gameStyle == GameStyle.tundra
+                              ? tundraButtonColor
+                              : selectedButtonColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Nivel ${state.statistics.totalPlayed + 1}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Desafío: ${state.level.label}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: onOpenRanking,
+                      icon: const Icon(Icons.emoji_events_rounded),
+                      label: const Text('Ver ranking y estadísticas'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: rankingButtonColor,
+                        side: BorderSide(color: rankingButtonColor),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

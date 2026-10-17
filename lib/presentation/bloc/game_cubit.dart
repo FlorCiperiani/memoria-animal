@@ -33,9 +33,9 @@ class GameCubit extends Cubit<GameState> {
   final GameProfileRepository _profileRepository;
   final GameConfig _config;
 
-  static const revealCardCost = 15;
-  static const findPairCost = 40;
-  static const extraTimeCost = 25;
+  static const revealCardCost = GameEconomy.revealCardCost;
+  static const findPairCost = GameEconomy.findPairCost;
+  static const extraTimeCost = GameEconomy.extraTimeCost;
 
   late final Future<void> _profileReady;
   Timer? _timer;
@@ -155,7 +155,7 @@ class GameCubit extends Cubit<GameState> {
 
   /// Inicia una partida nueva con un tablero aleatorio.
   Future<void> startGame(bool isDark) {
-    final level = _getRandomLevel(state.statistics.totalPlayed);
+    final level = state.level;
     final difficulty = state.gameMode.difficulty;
     emit(
       state.copyWith(
@@ -263,7 +263,7 @@ class GameCubit extends Cubit<GameState> {
       state.copyWith(
         phase: GamePhase.playing,
         cards: _setStatus(state.cards, null, CardStatus.hidden),
-        remainingSeconds: _config.roundDuration.inSeconds,
+        remainingSeconds: _config.roundDurationFor(state.level, state.gameMode).inSeconds,
       ),
     );
     _startTimer(session);
@@ -504,13 +504,13 @@ class GameCubit extends Cubit<GameState> {
 
   Future<(int, int)> _calculateDiamonds(bool isFinished) async {
     if (!isFinished) return (state.diamonds, 0);
-    final baseReward = switch (state.level) {
-      GameLevel.one => 4,
-      GameLevel.two => 7,
-      GameLevel.three => 10,
-    };
-    final timeBonus = (state.remainingSeconds ~/ 12).clamp(1, 8);
-    final earned = (baseReward + timeBonus).clamp(3, 20);
+    final earned = GameEconomy.calculateReward(
+      level: state.level,
+      mode: state.gameMode,
+      moves: state.moves,
+      remainingSeconds: state.remainingSeconds,
+      isFinished: isFinished,
+    );
     final newDiamonds = state.diamonds + earned;
     await _profileRepository.saveDiamonds(newDiamonds);
     return (newDiamonds, earned);
