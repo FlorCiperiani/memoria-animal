@@ -24,14 +24,14 @@ class _TutorialDialogState extends State<_TutorialDialog> {
     (
       Icons.palette_rounded,
       'Elegí cómo jugar',
-      'Seleccioná una temática y una dificultad. La dificultad define cuánto '
-          'tiempo ves las cartas al comienzo de la partida.',
+      'Seleccioná una temática y un modo de juego. El modo define cuánto '
+          'tiempo ves las cartas al comienzo y también el tiempo total de la partida.',
     ),
     (
       Icons.flag_rounded,
       'Elegí un nivel',
       'Cada nivel suma pares de cartas. Cuando estés listo, tocá el botón '
-          '“¡Jugar!” para empezar.',
+          'para empezar.',
     ),
     (
       Icons.touch_app_rounded,

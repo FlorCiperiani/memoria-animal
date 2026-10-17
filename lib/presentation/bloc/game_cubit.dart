@@ -111,7 +111,7 @@ class GameCubit extends Cubit<GameState> {
   }
 
   GameLevel _getRandomLevel(int totalPlayed) {
-    if (totalPlayed == 0) return GameLevel.one;
+    if (totalPlayed < 2) return GameLevel.one; // Las primeras 2 partidas son siempre fácil
     final rnd = math.Random().nextDouble();
     if (rnd < 0.50) {
       return GameLevel.one; // 50% fácil
@@ -122,8 +122,7 @@ class GameCubit extends Cubit<GameState> {
     }
   }
 
-  GameLevel getNextGameLevel() =>
-      _getRandomLevel(state.statistics.totalPlayed + 1);
+  GameLevel getNextGameLevel() => state.level;
 
   void returnToSetup() {
     unawaited(_audioRepository.stopVictory());
@@ -175,17 +174,25 @@ class GameCubit extends Cubit<GameState> {
   }
 
   /// Genera una partida completamente nueva.
-  Future<void> newGame(bool isDark) => _beginGame(
-    _generateBoard(_config.pairsCountFor(state.level), state.gameStyle, isDark),
-    isDark,
-  );
+  Future<void> newGame(bool isDark) {
+    final level = _getRandomLevel(state.statistics.totalPlayed);
+    final difficulty = state.gameMode.difficulty;
+    emit(state.copyWith(level: level, difficulty: difficulty));
+    return _beginGame(
+      _generateBoard(_config.pairsCountFor(level), state.gameStyle, isDark),
+      isDark,
+    );
+  }
 
   void returnToThemes() => returnToSetup();
 
   /// Reinicia la partida generando un nuevo tablero y reiniciando el puntaje.
   Future<void> restartGame(bool isDark) {
+    final level = _getRandomLevel(state.statistics.totalPlayed);
+    final difficulty = state.gameMode.difficulty;
+    emit(state.copyWith(level: level, difficulty: difficulty));
     final cards = _generateBoard(
-      _config.pairsCountFor(state.level),
+      _config.pairsCountFor(level),
       state.gameStyle,
       isDark,
     );
@@ -562,6 +569,8 @@ class GameCubit extends Cubit<GameState> {
     if (hasStarBonus) _starCooldownSeconds = 10;
 
     final (newDiamonds, earnedDiamonds) = await _calculateDiamonds(isFinished);
+    // Pre-calculate next random level for the upcoming game so setup button and next game match
+    final nextLevel = _getRandomLevel(statistics.totalPlayed);
 
     emit(
       state.copyWith(
@@ -572,6 +581,7 @@ class GameCubit extends Cubit<GameState> {
         earnedDiamonds: earnedDiamonds,
         scores: {...state.scores, difficulty: totalScore},
         statistics: statistics,
+        level: nextLevel,
         phase: isFinished ? GamePhase.finished : GamePhase.playing,
         clearStarCard: hasStarBonus,
         starSecondsRemaining: hasStarBonus ? 0 : null,
@@ -659,6 +669,7 @@ class GameCubit extends Cubit<GameState> {
     if (hasStarBonus) _starCooldownSeconds = 10;
 
     final (newDiamonds, earnedDiamonds) = await _calculateDiamonds(isFinished);
+    final nextLevel = _getRandomLevel(statistics.totalPlayed);
 
     emit(
       state.copyWith(
@@ -669,6 +680,7 @@ class GameCubit extends Cubit<GameState> {
         earnedDiamonds: earnedDiamonds,
         scores: {...state.scores, difficulty: totalScore},
         statistics: statistics,
+        level: nextLevel,
         phase: isFinished ? GamePhase.finished : GamePhase.playing,
         clearStarCard: hasStarBonus,
         starSecondsRemaining: hasStarBonus ? 0 : null,
@@ -695,6 +707,7 @@ class GameCubit extends Cubit<GameState> {
         _timer = null;
         _session++;
         _starCooldownSeconds = 10;
+        final nextLevel = _getRandomLevel(state.statistics.totalPlayed);
         emit(
           state.copyWith(
             phase: GamePhase.timeExpired,
@@ -704,6 +717,7 @@ class GameCubit extends Cubit<GameState> {
             clearFirstSelected: true,
             clearStarCard: true,
             starSecondsRemaining: 0,
+            level: nextLevel,
           ),
         );
         _selectedStarCardId = null;

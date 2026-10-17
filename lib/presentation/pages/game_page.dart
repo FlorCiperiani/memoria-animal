@@ -2203,6 +2203,7 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
 
   int _totalEarnedDiamonds = 0;
   int _stage = 0; // 0: initial, 1: score anim, 2: time anim, 3: finished
+  bool _isSkipped = false;
 
   String get _speedMessage {
     if (widget.remainingSeconds >= 35) return '¡Muy veloz! ⚡';
@@ -2219,37 +2220,54 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
   }
 
   Future<void> _startAnimationSequence() async {
+    if (_isSkipped || !mounted) return;
     setState(() => _stage = 1);
     await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (_isSkipped || !mounted) return;
 
     final scoreSteps = _targetScoreDiamonds > 0 ? _targetScoreDiamonds : 1;
     for (int i = 0; i < scoreSteps; i++) {
-      if (!mounted) return;
+      if (_isSkipped || !mounted) return;
       await Future<void>.delayed(const Duration(milliseconds: 70));
+      if (_isSkipped || !mounted) return;
       setState(() {
         _scoreDiamonds += 1;
         _totalEarnedDiamonds += 1;
       });
     }
 
+    if (_isSkipped || !mounted) return;
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
+    if (_isSkipped || !mounted) return;
     setState(() => _stage = 2);
     await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (_isSkipped || !mounted) return;
 
     final timeSteps = _targetTimeBonus > 0 ? _targetTimeBonus : 1;
     for (int i = 0; i < timeSteps; i++) {
-      if (!mounted) return;
+      if (_isSkipped || !mounted) return;
       await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (_isSkipped || !mounted) return;
       setState(() {
         _timeDiamonds += 1;
         _totalEarnedDiamonds += 1;
       });
     }
 
+    if (_isSkipped || !mounted) return;
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
+    if (_isSkipped || !mounted) return;
     setState(() => _stage = 3);
+  }
+
+  void _skipAnimation() {
+    setState(() {
+      _isSkipped = true;
+      _scoreDiamonds = _targetScoreDiamonds;
+      _timeDiamonds = _targetTimeBonus;
+      _totalEarnedDiamonds = _targetScoreDiamonds + _targetTimeBonus;
+      _stage = 3;
+    });
   }
 
   @override
@@ -2443,7 +2461,7 @@ class _VictoryRewardDialogState extends State<_VictoryRewardDialog> {
           ),
         ] else ...[
           TextButton(
-            onPressed: () => setState(() => _stage = 3),
+            onPressed: _skipAnimation,
             child: Text('Saltar animación', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
           ),
         ],
