@@ -509,8 +509,8 @@ class _GameView extends StatelessWidget {
       builder: (_) => BlocProvider.value(
         value: cubit,
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
             child: BlocBuilder<GameCubit, GameState>(
               builder: (context, state) => Column(
                 mainAxisSize: MainAxisSize.min,
@@ -2039,7 +2039,7 @@ class _GameControlBar extends StatelessWidget {
       Theme.of(context).brightness == Brightness.dark,
     );
     final canPause = state.phase == GamePhase.playing && !state.isResolving;
-    final canNewGame = state.phase != GamePhase.initial;
+    final canNewGame = state.phase == GamePhase.playing && !state.isResolving;
 
     return Wrap(
       alignment: WrapAlignment.center,
