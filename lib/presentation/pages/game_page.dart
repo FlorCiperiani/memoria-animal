@@ -20,7 +20,7 @@ import '../widgets/tutorial_dialog.dart';
 
 enum _DiamondOption { purchase, advertisement }
 
-enum _SettingsAction { exit, tutorial }
+enum _SettingsAction { tutorial }
 
 bool _requiresPro(GameStyle style) => const {
   GameStyle.prairie,
@@ -509,8 +509,8 @@ class _GameView extends StatelessWidget {
       builder: (_) => BlocProvider.value(
         value: cubit,
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             child: BlocBuilder<GameCubit, GameState>(
               builder: (context, state) => Column(
                 mainAxisSize: MainAxisSize.min,
@@ -577,13 +577,6 @@ class _GameView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.logout_rounded),
-                    title: const Text('Salir'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_SettingsAction.exit),
-                  ),
                 ],
               ),
             ),
@@ -592,9 +585,7 @@ class _GameView extends StatelessWidget {
       ),
     );
     if (!context.mounted) return;
-    if (action == _SettingsAction.exit) {
-      Navigator.of(context).pop();
-    } else if (action == _SettingsAction.tutorial) {
+    if (action == _SettingsAction.tutorial) {
       await _showTutorial(context, profileRepository);
     }
   }
