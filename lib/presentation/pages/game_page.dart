@@ -1496,7 +1496,7 @@ class _GameSetup extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Nivel ${state.statistics.totalPlayed + 1}',
+                              'Nivel ${(state.statistics.playsByStyle[state.gameStyle] ?? 0) + 1}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

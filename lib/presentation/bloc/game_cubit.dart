@@ -59,7 +59,8 @@ class GameCubit extends Cubit<GameState> {
   Future<void> loadStatistics() async {
     final statistics = await _scoreRepository.loadStatistics();
     if (isClosed) return;
-    final level = _getRandomLevel(statistics.totalPlayed);
+    final playsInStyle = statistics.playsByStyle[state.gameStyle] ?? 0;
+    final level = _getRandomLevel(playsInStyle);
     emit(
       state.copyWith(
         statistics: statistics,
@@ -93,7 +94,9 @@ class GameCubit extends Cubit<GameState> {
 
   Future<void> selectStyle(GameStyle style, bool isDark) async {
     if (state.phase != GamePhase.initial || _startingGame) return;
-    emit(state.copyWith(gameStyle: style));
+    final playsInStyle = state.statistics.playsByStyle[style] ?? 0;
+    final level = _getRandomLevel(playsInStyle);
+    emit(state.copyWith(gameStyle: style, level: level));
     final scores = await _scoreRepository.loadScores(style);
     if (isClosed) return;
     emit(state.copyWith(scores: scores, scoresLoaded: true, score: 0));
@@ -110,8 +113,8 @@ class GameCubit extends Cubit<GameState> {
     );
   }
 
-  GameLevel _getRandomLevel(int totalPlayed) {
-    if (totalPlayed < 2) return GameLevel.one; // Las primeras 2 partidas son siempre fácil
+  GameLevel _getRandomLevel(int stylePlayed) {
+    if (stylePlayed < 2) return GameLevel.one; // Las primeras 2 partidas en este modo/temática son siempre fácil
     final rnd = math.Random().nextDouble();
     if (rnd < 0.50) {
       return GameLevel.one; // 50% fácil
@@ -131,7 +134,8 @@ class GameCubit extends Cubit<GameState> {
     _timer = null;
     _session++;
     _selectedStarCardId = null;
-    final level = _getRandomLevel(state.statistics.totalPlayed);
+    final playsInStyle = state.statistics.playsByStyle[state.gameStyle] ?? 0;
+    final level = _getRandomLevel(playsInStyle);
     emit(
       GameState(
         scores: state.scores,
@@ -175,7 +179,8 @@ class GameCubit extends Cubit<GameState> {
 
   /// Genera una partida completamente nueva.
   Future<void> newGame(bool isDark) {
-    final level = _getRandomLevel(state.statistics.totalPlayed);
+    final playsInStyle = state.statistics.playsByStyle[state.gameStyle] ?? 0;
+    final level = _getRandomLevel(playsInStyle);
     final difficulty = state.gameMode.difficulty;
     emit(state.copyWith(level: level, difficulty: difficulty));
     return _beginGame(
@@ -188,7 +193,8 @@ class GameCubit extends Cubit<GameState> {
 
   /// Reinicia la partida generando un nuevo tablero y reiniciando el puntaje.
   Future<void> restartGame(bool isDark) {
-    final level = _getRandomLevel(state.statistics.totalPlayed);
+    final playsInStyle = state.statistics.playsByStyle[state.gameStyle] ?? 0;
+    final level = _getRandomLevel(playsInStyle);
     final difficulty = state.gameMode.difficulty;
     emit(state.copyWith(level: level, difficulty: difficulty));
     final cards = _generateBoard(
@@ -569,8 +575,8 @@ class GameCubit extends Cubit<GameState> {
     if (hasStarBonus) _starCooldownSeconds = 10;
 
     final (newDiamonds, earnedDiamonds) = await _calculateDiamonds(isFinished);
-    // Pre-calculate next random level for the upcoming game so setup button and next game match
-    final nextLevel = _getRandomLevel(statistics.totalPlayed);
+    final nextPlaysInStyle = statistics.playsByStyle[state.gameStyle] ?? 0;
+    final nextLevel = _getRandomLevel(nextPlaysInStyle);
 
     emit(
       state.copyWith(
@@ -669,7 +675,8 @@ class GameCubit extends Cubit<GameState> {
     if (hasStarBonus) _starCooldownSeconds = 10;
 
     final (newDiamonds, earnedDiamonds) = await _calculateDiamonds(isFinished);
-    final nextLevel = _getRandomLevel(statistics.totalPlayed);
+    final nextPlaysInStyle = statistics.playsByStyle[state.gameStyle] ?? 0;
+    final nextLevel = _getRandomLevel(nextPlaysInStyle);
 
     emit(
       state.copyWith(
@@ -707,7 +714,8 @@ class GameCubit extends Cubit<GameState> {
         _timer = null;
         _session++;
         _starCooldownSeconds = 10;
-        final nextLevel = _getRandomLevel(state.statistics.totalPlayed);
+        final playsInStyle = state.statistics.playsByStyle[state.gameStyle] ?? 0;
+        final nextLevel = _getRandomLevel(playsInStyle);
         emit(
           state.copyWith(
             phase: GamePhase.timeExpired,
@@ -734,6 +742,7 @@ class GameCubit extends Cubit<GameState> {
   }
 
   bool _hasStarBonus(Set<int> cardIds) =>
+      state.statisticsLoaded &&
       state.starCardId != null &&
       cardIds.contains(state.starCardId) &&
       state.starSecondsRemaining > 0;
